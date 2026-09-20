@@ -496,9 +496,18 @@ export class Simulation {
 
         // Pipe collision
         if (ob.type === 'warp_pipe') {
-          if (mx + mw > ob.x + 6 && mx < ob.x + ob.w - 6 && my + mh > ob.y + 6) {
-            this.killMario();
-            return;
+          // Landing on TOP of the pipe:
+          if (mx + mw > ob.x + 2 && mx < ob.x + ob.w - 2) {
+            if (m.vy >= 0 && my + mh >= ob.y - 6 && my + mh <= ob.y + 16) {
+              m.y = ob.y - mh;
+              m.vy = 0;
+              m.isGrounded = true;
+              continue;
+            } else if (my + mh > ob.y + 16) {
+              // Collide with the side of the pipe
+              this.killMario();
+              return;
+            }
           }
         }
       }

@@ -241,7 +241,7 @@ obstacle_type: "${state.obstacle_type}", obstacle_dist: ${state.obstacle_dist}px
 next_obstacle: "${state.next_obstacle}", next_dist: ${state.next_dist}px, run_speed: ${state.run_speed}
 
 Determine jump urgency (0=Not at all, 1=Soon, 2=Right now).
-Rule: If Mario is airborne (!is_grounded), urgency is 0. If obstacle_dist <= 55px and grounded, urgency is 2 (JUMP). If obstacle_dist between 60-120px, urgency is 1. Else 0.
+Rule: If Mario is airborne (!is_grounded), urgency is 0. If obstacle_dist is between 40px and 110px and grounded, urgency is 2 (JUMP NOW to clear obstacle or stomp enemy). If obstacle_dist is between 110px and 180px, urgency is 1. Else 0.
 
 Respond strictly in valid JSON:
 {

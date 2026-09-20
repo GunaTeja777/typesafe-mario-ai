@@ -149,37 +149,52 @@ export class CanvasRenderer {
 
   private drawPipe(x: number, y: number, w: number, h: number) {
     const c = this.ctx;
-    const capH = 20;
+    const capH = 26;
     const overhang = 6;
-
-    const bodyGrad = c.createLinearGradient(x, 0, x + w, 0);
-    bodyGrad.addColorStop(0, '#00a800');
-    bodyGrad.addColorStop(0.22, '#7ce800');
-    bodyGrad.addColorStop(0.45, '#00a800');
-    bodyGrad.addColorStop(0.85, '#006400');
-    bodyGrad.addColorStop(1, '#004200');
-
-    c.fillStyle = bodyGrad;
-    c.fillRect(x, y + capH, w, h - capH);
-    c.strokeStyle = INK;
-    c.lineWidth = 2.5;
-    c.strokeRect(x, y + capH, w, h - capH);
-
     const capX = x - overhang;
     const capW = w + overhang * 2;
-    const capGrad = c.createLinearGradient(capX, 0, capX + capW, 0);
-    capGrad.addColorStop(0, '#00a800');
-    capGrad.addColorStop(0.22, '#8ef800');
-    capGrad.addColorStop(0.45, '#00a800');
-    capGrad.addColorStop(0.85, '#006400');
-    capGrad.addColorStop(1, '#004200');
 
-    c.fillStyle = capGrad;
+    // --- 1. Pipe Body ---
+    c.fillStyle = '#00a800'; // Classic Mario Green
+    c.fillRect(x, y + capH, w, h - capH);
+
+    // Left Highlight Stripe
+    c.fillStyle = '#80e000';
+    c.fillRect(x + 5, y + capH, 9, h - capH);
+
+    // Right Shadow Stripe
+    c.fillStyle = '#005800';
+    c.fillRect(x + w - 14, y + capH, 14, h - capH);
+
+    // Body Outline
+    c.strokeStyle = '#000000';
+    c.lineWidth = 3;
+    c.strokeRect(x, y + capH, w, h - capH);
+
+    // --- 2. Pipe Cap (Rim) ---
+    c.fillStyle = '#00a800';
     c.fillRect(capX, y, capW, capH);
+
+    // Cap Left Highlight
+    c.fillStyle = '#80e000';
+    c.fillRect(capX + 6, y, 10, capH);
+
+    // Top Rim Highlight
+    c.fillStyle = '#9cfc00';
+    c.fillRect(capX + 2, y + 2, capW - 4, 3);
+
+    // Cap Right Shadow
+    c.fillStyle = '#005800';
+    c.fillRect(capX + capW - 16, y, 16, capH);
+
+    // Cap Outline
+    c.strokeStyle = '#000000';
+    c.lineWidth = 3;
     c.strokeRect(capX, y, capW, capH);
 
-    c.fillStyle = '#002800';
-    c.fillRect(capX + 2, y + 2, capW - 4, 3);
+    // Under-cap drop shadow
+    c.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    c.fillRect(x + 1, y + capH, w - 2, 4);
   }
 
   private drawGround(dist: number) {
