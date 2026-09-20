@@ -721,6 +721,32 @@ export function makeKoopaShell(): HTMLCanvasElement {
   return c;
 }
 
+export function makeEmptyBlock(): HTMLCanvasElement {
+  const [c, x] = mk(36, 36);
+  x.translate(18, 18);
+
+  // Brown Empty Used Block Body
+  x.fillStyle = '#8b5a2b';
+  x.strokeStyle = INK;
+  x.lineWidth = 2.5;
+  x.beginPath();
+  x.roundRect(-14, -14, 28, 28, 4);
+  x.fill();
+  x.stroke();
+
+  // Inner Shaded Surface
+  x.fillStyle = '#6e451e';
+  x.fillRect(-12, -12, 24, 24);
+
+  // Corner Rivets
+  x.fillStyle = '#3a200a';
+  for (const [rx, ry] of [[-10, -10], [10, -10], [-10, 10], [10, 10]]) {
+    x.fillRect(rx - 1.5, ry - 1.5, 3, 3);
+  }
+
+  return c;
+}
+
 export const marioRunSprites = [
   makeMarioRunFrame(0),
   makeMarioRunFrame(1),
@@ -733,6 +759,7 @@ export const goombaSprites = [makeGoomba(0), makeGoomba(1)];
 export const koopaSprites = [makeKoopa(0), makeKoopa(1)];
 export const koopaShellSprite = makeKoopaShell();
 export const questionBlockSprite = makeQuestionBlock();
+export const emptyBlockSprite = makeEmptyBlock();
 export const brickBlockSprite = makeBrickBlock();
 export const mushroomSprite = makeSuperMushroom();
 export const coinSprites = [
