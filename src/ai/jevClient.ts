@@ -68,7 +68,8 @@ export class JevClient {
   private totalCost: number = 0;
   private inFlight: boolean = false;
   private lastCallTime: number = 0;
-  public queryIntervalMs: number = 100; // asked every 0.1s of game time
+  private groqCooldownUntil: number = 0;
+  public queryIntervalMs: number = 350; // Throttle to prevent Groq 429 rate limits
 
   public telemetry: JevTelemetry;
   public onTelemetryUpdate?: (t: JevTelemetry) => void;
@@ -206,9 +207,14 @@ export class JevClient {
     const requestPayload = this.createRequestPayload(state);
     this.telemetry.lastRequest = requestPayload;
 
+    // If on cooldown from 429 rate limit, use simulator temporarily
+    if (now < this.groqCooldownUntil) {
+      return this.simulateJevDecision(state, requestPayload);
+    }
+
     if (this.apiKey && !this.inFlight) {
       if (this.provider === 'Groq') {
-        return this.callGroqApi(state, requestPayload);
+        return this.callGroqApi(state, requestPayload, now);
       } else {
         return this.callOpenRouterApi(requestPayload);
       }
@@ -222,7 +228,8 @@ export class JevClient {
    */
   private async callGroqApi(
     state: JevMarioState,
-    payload: JevDecisionRequest
+    payload: JevDecisionRequest,
+    now: number
   ): Promise<{ shouldJump: boolean; score: number }> {
     this.inFlight = true;
     const startTime = performance.now();
@@ -333,6 +340,10 @@ Respond strictly in valid JSON:
         return { shouldJump, score };
       } else {
         this.inFlight = false;
+        if (resp.status === 429) {
+          // Cooldown for 3.5 seconds on rate limit
+          this.groqCooldownUntil = now + 3500;
+        }
         return this.simulateJevDecision(state, payload, resp.status);
       }
     } catch {
