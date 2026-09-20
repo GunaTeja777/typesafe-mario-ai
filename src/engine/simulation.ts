@@ -50,6 +50,7 @@ export class Simulation {
   public score: number = 0;
   public bestScore: number = 0;
   public coins: number = 0;
+  public fireAmmo: number = 10;
   public dist: number = 0;
   public paused: boolean = false;
   public humanControl: boolean = false;
@@ -91,6 +92,8 @@ export class Simulation {
       animTick: 0
     };
     this.score = 0;
+    this.coins = 0;
+    this.fireAmmo = 10;
     this.dist = 0;
     this.obstacles = [];
     this.particles = [];
@@ -113,6 +116,11 @@ export class Simulation {
 
   public shoot() {
     if (!this.mario.alive) return;
+    if (this.fireAmmo <= 0) {
+      this.addScorePopup('NO FIRE!', CONSTS.MARIO_X + 20, this.mario.y - 12, '#94a3b8');
+      return;
+    }
+    this.fireAmmo--;
     this.fireballs.push({
       id: this.objId++,
       x: CONSTS.MARIO_X + 24,
@@ -268,7 +276,8 @@ export class Simulation {
     } else {
       this.coins++;
       this.score += 100;
-      this.addScorePopup('+100', b.x, b.y - 20, '#ffffff');
+      this.fireAmmo += 3;
+      this.addScorePopup('+100 & +3 FIRE!', b.x, b.y - 20, '#ffd700');
       sounds.playScore();
 
       for (let i = 0; i < 6; i++) {
@@ -288,8 +297,9 @@ export class Simulation {
   public popBrick(b: GroundObstacle) {
     b.bounceY = -6;
     sounds.playClick();
-    this.addScorePopup('+50', b.x, b.y - 16, '#f97316');
     this.score += 50;
+    this.fireAmmo += 1;
+    this.addScorePopup('+50 & +1 FIRE!', b.x, b.y - 16, '#f97316');
   }
 
   public killMario() {
@@ -541,20 +551,40 @@ export class Simulation {
           continue;
         }
 
-        // Hit Question Block
-        if (ob.type === 'block' && !ob.hit) {
-          if (mx + mw > ob.x && mx < ob.x + ob.w && m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 10) {
-            m.vy = 2;
-            this.popBlock(ob);
+        // Hit Question Block (Solid top and bottom)
+        if (ob.type === 'block') {
+          if (mx + mw > ob.x + 2 && mx < ob.x + ob.w - 2) {
+            // 1. Mario hits from underneath (head hits bottom of block):
+            if (m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 18) {
+              m.y = ob.y + ob.h; // solid clamp - cannot phase through!
+              m.vy = 3;          // bump downward
+              if (!ob.hit) this.popBlock(ob);
+            }
+            // 2. Mario lands on top of the block:
+            else if (m.vy >= 0 && my + mh >= ob.y - 8 && my + mh <= ob.y + 14) {
+              m.y = ob.y - mh;
+              m.vy = 0;
+              m.isGrounded = true;
+            }
           }
           continue;
         }
 
-        // Hit Brick Block
+        // Hit Brick Block (Solid top and bottom)
         if (ob.type === 'brick') {
-          if (mx + mw > ob.x && mx < ob.x + ob.w && m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 10) {
-            m.vy = 2;
-            this.popBrick(ob);
+          if (mx + mw > ob.x + 2 && mx < ob.x + ob.w - 2) {
+            // 1. Mario hits from underneath:
+            if (m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 18) {
+              m.y = ob.y + ob.h; // solid clamp
+              m.vy = 3;
+              this.popBrick(ob);
+            }
+            // 2. Mario lands on top of the brick:
+            else if (m.vy >= 0 && my + mh >= ob.y - 8 && my + mh <= ob.y + 14) {
+              m.y = ob.y - mh;
+              m.vy = 0;
+              m.isGrounded = true;
+            }
           }
           continue;
         }

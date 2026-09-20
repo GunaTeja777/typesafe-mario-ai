@@ -273,6 +273,7 @@ export class CanvasRenderer {
 
     const scoreStr = `MARIO\n${pad(sim.score, 6)}`;
     const coinStr = `COINS\n🪙x${pad(sim.coins, 2)}`;
+    const fireStr = `FIRE\n🔥x${pad(sim.fireAmmo, 2)}`;
     const worldStr = `WORLD\n 1-1`;
     const genStr = `GEN\n ${sim.gen}`;
 
@@ -285,9 +286,10 @@ export class CanvasRenderer {
 
     // Safe margins across widescreen
     drawPill(scoreStr, 34, 18);
-    drawPill(coinStr, 220, 18);
-    drawPill(worldStr, 410, 18);
-    drawPill(genStr, 600, 18);
+    drawPill(coinStr, 190, 18);
+    drawPill(fireStr, 335, 18);
+    drawPill(worldStr, 475, 18);
+    drawPill(genStr, 615, 18);
 
     c.restore();
   }
@@ -369,9 +371,9 @@ export class CanvasRenderer {
     const m = sim.mario;
     c.save();
 
-    // Invincibility flash
-    if (m.invincibleTicks > 0 && Math.floor(m.invincibleTicks / 4) % 2 === 0) {
-      c.globalAlpha = 0.4;
+    // Invincibility flash: crisp retro flicker without washed-out low-opacity transparency
+    if (m.invincibleTicks > 0 && Math.floor(m.invincibleTicks / 3) % 2 === 0) {
+      c.globalAlpha = 0.85;
     }
 
     c.translate(CONSTS.MARIO_X, m.y);
