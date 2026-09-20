@@ -4,7 +4,11 @@ import {
   marioJumpSprite,
   marioDeadSprite,
   goombaSprites,
+  koopaSprites,
+  koopaShellSprite,
   questionBlockSprite,
+  brickBlockSprite,
+  mushroomSprite,
   coinSprites
 } from './sprites';
 import { ParticleSystem } from './particles';
@@ -42,7 +46,6 @@ export class CanvasRenderer {
   }
 
   public buildStaticLayers() {
-    // Super Mario Sky
     const sky = document.createElement('canvas');
     sky.width = CONSTS.W * 2;
     sky.height = CONSTS.H * 2;
@@ -50,7 +53,7 @@ export class CanvasRenderer {
     sx.scale(2, 2);
 
     const g = sx.createLinearGradient(0, 0, 0, CONSTS.H);
-    g.addColorStop(0, '#5c94fc');   // Classic Mario Sky Blue
+    g.addColorStop(0, '#5c94fc');   // Super Mario Sky Blue
     g.addColorStop(0.75, '#88b5fc');
     g.addColorStop(1, '#c4dcfe');
     sx.fillStyle = g;
@@ -74,7 +77,6 @@ export class CanvasRenderer {
       x.translate(cx, cy);
       x.scale(scale, scale);
 
-      // Solid white cloud body
       x.fillStyle = '#ffffff';
       x.beginPath();
       x.arc(-22, 0, 16, 0, Math.PI * 2);
@@ -83,7 +85,6 @@ export class CanvasRenderer {
       x.rect(-22, -2, 44, 18);
       x.fill();
 
-      // Outer outline
       x.strokeStyle = INK;
       x.lineWidth = 2.5;
       x.lineJoin = 'round';
@@ -95,7 +96,6 @@ export class CanvasRenderer {
       x.closePath();
       x.stroke();
 
-      // Cloud eyes
       x.fillStyle = INK;
       x.beginPath();
       x.ellipse(-7, 2, 2, 4.5, 0, 0, Math.PI * 2);
@@ -105,10 +105,10 @@ export class CanvasRenderer {
       x.restore();
     };
 
-    for (let i = 0; i < 4; i++) {
-      const cx = 80 + i * 140 + rand() * 40;
-      const cy = 60 + rand() * 160;
-      const scale = 0.85 + rand() * 0.25;
+    for (let i = 0; i < 5; i++) {
+      const cx = 70 + i * 160 + rand() * 50;
+      const cy = 50 + rand() * 180;
+      const scale = 0.85 + rand() * 0.3;
       for (const offset of [-CONSTS.W, 0, CONSTS.W]) {
         drawMarioCloud(cx + offset, cy, scale);
       }
@@ -123,14 +123,14 @@ export class CanvasRenderer {
     const x = c.getContext('2d')!;
     x.scale(2, 2);
 
-    x.fillStyle = '#00a800'; // Mario Hill Green
+    x.fillStyle = '#00a800';
     x.strokeStyle = INK;
     x.lineWidth = 3;
 
     x.beginPath();
     x.moveTo(0, CONSTS.GROUND_Y);
     for (let px = 0; px <= CONSTS.W; px += 4) {
-      const y = CONSTS.GROUND_Y - 50 + 20 * Math.sin((2 * Math.PI * 2 * px) / CONSTS.W + 0.4) + 8 * Math.sin((2 * Math.PI * 4 * px) / CONSTS.W);
+      const y = CONSTS.GROUND_Y - 60 + 24 * Math.sin((2 * Math.PI * 2 * px) / CONSTS.W + 0.4) + 10 * Math.sin((2 * Math.PI * 4 * px) / CONSTS.W);
       x.lineTo(px, y);
     }
     x.lineTo(CONSTS.W, CONSTS.GROUND_Y);
@@ -147,15 +147,11 @@ export class CanvasRenderer {
     this.ctx.drawImage(img, CONSTS.W - off, 0, CONSTS.W, CONSTS.H);
   }
 
-  /**
-   * Ground Warp Pipe
-   */
   private drawPipe(x: number, y: number, w: number, h: number) {
     const c = this.ctx;
-    const capH = 18;
-    const overhang = 5;
+    const capH = 20;
+    const overhang = 6;
 
-    // Pipe Body
     const bodyGrad = c.createLinearGradient(x, 0, x + w, 0);
     bodyGrad.addColorStop(0, '#00a800');
     bodyGrad.addColorStop(0.22, '#7ce800');
@@ -169,7 +165,6 @@ export class CanvasRenderer {
     c.lineWidth = 2.5;
     c.strokeRect(x, y + capH, w, h - capH);
 
-    // Pipe Cap
     const capX = x - overhang;
     const capW = w + overhang * 2;
     const capGrad = c.createLinearGradient(capX, 0, capX + capW, 0);
@@ -183,30 +178,23 @@ export class CanvasRenderer {
     c.fillRect(capX, y, capW, capH);
     c.strokeRect(capX, y, capW, capH);
 
-    // Inner Opening
     c.fillStyle = '#002800';
     c.fillRect(capX + 2, y + 2, capW - 4, 3);
   }
 
-  /**
-   * Super Mario Ground (Brick & Grass)
-   */
   private drawGround(dist: number) {
     const c = this.ctx;
     const gy = CONSTS.GROUND_Y;
     const gh = CONSTS.H - gy;
 
-    // Ground Base Orange / Brown
     c.fillStyle = '#d88b28';
     c.fillRect(0, gy, CONSTS.W, gh);
 
-    // Top Green Grass Fringe
     c.fillStyle = '#00a800';
-    c.fillRect(0, gy, CONSTS.W, 8);
+    c.fillRect(0, gy, CONSTS.W, 9);
     c.fillStyle = '#74d600';
     c.fillRect(0, gy, CONSTS.W, 3);
 
-    // Dark Divider Line
     c.strokeStyle = INK;
     c.lineWidth = 2.5;
     c.beginPath();
@@ -214,15 +202,14 @@ export class CanvasRenderer {
     c.lineTo(CONSTS.W, gy);
     c.stroke();
 
-    // Brick Pattern
     const off = dist % 28;
     for (let x = -off; x < CONSTS.W; x += 28) {
       c.beginPath();
-      c.moveTo(x, gy + 8);
+      c.moveTo(x, gy + 9);
       c.lineTo(x, CONSTS.H);
       c.stroke();
     }
-    for (let y = gy + 8; y < CONSTS.H; y += 18) {
+    for (let y = gy + 9; y < CONSTS.H; y += 18) {
       c.beginPath();
       c.moveTo(0, y);
       c.lineTo(CONSTS.W, y);
@@ -230,20 +217,16 @@ export class CanvasRenderer {
     }
   }
 
-  /**
-   * Classic Super Mario Arcade HUD
-   */
   private drawHud(sim: Simulation) {
     const c = this.ctx;
     c.save();
 
-    c.font = '700 16px "IBM Plex Mono", monospace';
+    c.font = '700 18px "IBM Plex Mono", monospace';
     c.textAlign = 'left';
     c.textBaseline = 'top';
 
     const pad = (num: number, size: number) => num.toString().padStart(size, '0');
 
-    // Header values
     const scoreStr = `MARIO\n${pad(sim.score, 6)}`;
     const coinStr = `COINS\n🪙x${pad(sim.coins, 2)}`;
     const worldStr = `WORLD\n 1-1`;
@@ -256,10 +239,11 @@ export class CanvasRenderer {
       c.fillText(txt, x, y);
     };
 
-    drawPill(scoreStr, 28, 16);
-    drawPill(coinStr, 170, 16);
-    drawPill(worldStr, 310, 16);
-    drawPill(genStr, 440, 16);
+    // Safe margins across widescreen
+    drawPill(scoreStr, 34, 18);
+    drawPill(coinStr, 220, 18);
+    drawPill(worldStr, 410, 18);
+    drawPill(genStr, 600, 18);
 
     c.restore();
   }
@@ -268,45 +252,60 @@ export class CanvasRenderer {
     const c = this.ctx;
     c.setTransform(2, 0, 0, 2, 0, 0);
 
-    // Sky & Parallax World
     c.drawImage(this.skyCache, 0, 0, CONSTS.W, CONSTS.H);
     this.drawParallax(this.cloudLayerCache, sim.dist, 0.15);
     this.drawParallax(this.hillLayerCache, sim.dist, 0.45);
 
-    // Render Obstacles (Pipes, Blocks, Coins, Goombas)
     this.coinTick++;
     const coinFrame = Math.floor(this.coinTick / 8) % 4;
-    const goombaFrame = Math.floor(sim.dist / 14) % 2;
+    const enemyFrame = Math.floor(sim.dist / 14) % 2;
 
+    // Render Obstacles & Entities
     for (const ob of sim.obstacles) {
       if (ob.type === 'warp_pipe') {
         this.drawPipe(ob.x, ob.y, ob.w, ob.h);
       } else if (ob.type === 'block') {
         const by = ob.bounceY ? ob.y + ob.bounceY : ob.y;
         c.drawImage(questionBlockSprite, ob.x, by, ob.w, ob.h);
+      } else if (ob.type === 'brick') {
+        const by = ob.bounceY ? ob.y + ob.bounceY : ob.y;
+        c.drawImage(brickBlockSprite, ob.x, by, ob.w, ob.h);
       } else if (ob.type === 'coin' && !ob.collected) {
         c.drawImage(coinSprites[coinFrame], ob.x, ob.y, ob.w, ob.h);
+      } else if (ob.type === 'mushroom' && !ob.collected) {
+        c.drawImage(mushroomSprite, ob.x, ob.y, ob.w, ob.h);
       } else if (ob.type === 'goomba') {
         if (ob.alive) {
-          c.drawImage(goombaSprites[goombaFrame], ob.x, ob.y, ob.w, ob.h);
+          c.drawImage(goombaSprites[enemyFrame], ob.x, ob.y, ob.w, ob.h);
         } else {
-          // Squished Goomba
           c.save();
           c.translate(ob.x, ob.y + 14);
           c.scale(1.2, 0.4);
           c.drawImage(goombaSprites[0], 0, 0, ob.w, ob.h);
           c.restore();
         }
+      } else if (ob.type === 'koopa') {
+        c.drawImage(koopaSprites[enemyFrame], ob.x, ob.y, ob.w, ob.h);
+      } else if (ob.type === 'koopa_shell') {
+        c.drawImage(koopaShellSprite, ob.x, ob.y, ob.w, ob.h);
       }
     }
 
-    // Ground
     this.drawGround(sim.dist);
 
     // Mario Character
     const m = sim.mario;
     c.save();
+
+    // Invincibility flash
+    if (m.invincibleTicks > 0 && Math.floor(m.invincibleTicks / 4) % 2 === 0) {
+      c.globalAlpha = 0.4;
+    }
+
     c.translate(CONSTS.MARIO_X, m.y);
+
+    const scale = m.isSuper ? 1.25 : 1.0;
+    c.scale(scale, scale);
 
     if (!m.alive) {
       c.drawImage(marioDeadSprite, -6, -4, 48, 48);
@@ -317,7 +316,20 @@ export class CanvasRenderer {
     }
     c.restore();
 
-    // Particles (coin sparkles / Goomba pops)
+    // Floating Score Popups
+    for (const fs of sim.floatingScores) {
+      c.save();
+      c.globalAlpha = Math.max(0, fs.l);
+      c.font = 'bold 16px "Lilita One", sans-serif';
+      c.lineWidth = 3;
+      c.strokeStyle = '#000000';
+      c.strokeText(fs.text, fs.x, fs.y);
+      c.fillStyle = fs.color;
+      c.fillText(fs.text, fs.x, fs.y);
+      c.restore();
+    }
+
+    // Particles
     ParticleSystem.updateAndDraw(c, sim.particles);
 
     // HUD
