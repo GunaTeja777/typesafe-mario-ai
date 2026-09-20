@@ -9,6 +9,9 @@ export class JevDashboard {
     this.renderLayout();
     this.bindEvents();
 
+    // Initial render immediately so boxes are never empty
+    this.updateTelemetry(jevClient.telemetry);
+
     jevClient.onTelemetryUpdate = (t: JevTelemetry) => {
       this.updateTelemetry(t);
     };
@@ -25,7 +28,7 @@ export class JevDashboard {
         </div>
         <div class="jev-stats-bar">
           <span class="jev-status-dot" id="jevDot">●</span>
-          <span id="jevCallStats">call 0: HTTP 200 in 210 ms, $0.000000</span>
+          <span id="jevCallStats">call 1: HTTP 200 in 240 ms, $0.000031</span>
           <button class="jev-config-btn" id="openApiSettingsBtn">🔑 API Key</button>
         </div>
       </div>
@@ -48,7 +51,7 @@ export class JevDashboard {
           </div>
 
           <div class="code-box" id="requestJsonBox">
-            <pre><code class="json-code" id="requestJsonCode">Loading game state...</code></pre>
+            <pre><code class="json-code" id="requestJsonCode"></code></pre>
           </div>
 
           <div class="panel-footer-note">
@@ -94,7 +97,7 @@ export class JevDashboard {
           </div>
 
           <div class="code-box" id="responseJsonBox">
-            <pre><code class="json-code" id="responseJsonCode">Waiting for Jev response...</code></pre>
+            <pre><code class="json-code" id="responseJsonCode"></code></pre>
           </div>
 
           <div class="panel-footer-note">
@@ -171,7 +174,7 @@ export class JevDashboard {
   public updateTelemetry(t: JevTelemetry) {
     const $ = (id: string) => document.getElementById(id);
 
-    // Call stats
+    // Stats
     const statsEl = $('jevCallStats');
     if (statsEl) {
       statsEl.textContent = `call ${t.callCount}: HTTP ${t.lastStatus} in ${t.lastLatencyMs} ms, $${t.estimatedCost.toFixed(6)}`;
@@ -207,23 +210,29 @@ export class JevDashboard {
 
     const fill0 = $('barFill0');
     const val0 = $('probVal0');
-    if (fill0 && val0) {
+    const row0 = $('probRow0');
+    if (fill0 && val0 && row0) {
       fill0.style.width = `${Math.round(probs['0'] * 100)}%`;
       val0.textContent = probs['0'].toFixed(2);
+      row0.style.backgroundColor = probs['0'] >= Math.max(probs['1'], probs['2']) ? '#273259' : '#18203f';
     }
 
     const fill1 = $('barFill1');
     const val1 = $('probVal1');
-    if (fill1 && val1) {
+    const row1 = $('probRow1');
+    if (fill1 && val1 && row1) {
       fill1.style.width = `${Math.round(probs['1'] * 100)}%`;
       val1.textContent = probs['1'].toFixed(2);
+      row1.style.backgroundColor = probs['1'] >= Math.max(probs['0'], probs['2']) ? '#273259' : '#18203f';
     }
 
     const fill2 = $('barFill2');
     const val2 = $('probVal2');
-    if (fill2 && val2) {
+    const row2 = $('probRow2');
+    if (fill2 && val2 && row2) {
       fill2.style.width = `${Math.round(probs['2'] * 100)}%`;
       val2.textContent = probs['2'].toFixed(2);
+      row2.style.backgroundColor = probs['2'] >= Math.max(probs['0'], probs['1']) ? '#273259' : '#18203f';
     }
 
     // JSON Request
@@ -237,11 +246,11 @@ export class JevDashboard {
           questions: {
             urgency: {
               type: 'score',
-              instructions: 'How urgently does the bird need to jump to avoid falling ...',
+              instructions: 'How urgently does Mario need to jump to clear the incoming obstacle...',
               criteria: [
-                'Not at all: the bird is rising, has plenty of room below ...',
-                'Soon: the bird is falling and will be near the bottom edg...',
-                'Right now: the bird will be at the bottom edge within 0.2...'
+                'Not at all: Mario is running safely, obstacle is far ahead...',
+                'Soon: The obstacle is approaching within 60-120px, prepare jump...',
+                'Right now: The obstacle is directly in front (<55px), JUMP immediately!'
               ]
             }
           }

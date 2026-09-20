@@ -1,5 +1,12 @@
 import { CONSTS, Simulation } from '../engine/simulation';
-import { marioSprites } from './sprites';
+import {
+  marioRunSprites,
+  marioJumpSprite,
+  marioDeadSprite,
+  goombaSprites,
+  questionBlockSprite,
+  coinSprites
+} from './sprites';
 import { ParticleSystem } from './particles';
 
 const INK = '#000000';
@@ -20,6 +27,7 @@ export class CanvasRenderer {
   private skyCache!: HTMLCanvasElement;
   private cloudLayerCache!: HTMLCanvasElement;
   private hillLayerCache!: HTMLCanvasElement;
+  private coinTick: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -43,16 +51,13 @@ export class CanvasRenderer {
 
     const g = sx.createLinearGradient(0, 0, 0, CONSTS.H);
     g.addColorStop(0, '#5c94fc');   // Classic Mario Sky Blue
-    g.addColorStop(0.7, '#88b5fc');
+    g.addColorStop(0.75, '#88b5fc');
     g.addColorStop(1, '#c4dcfe');
     sx.fillStyle = g;
     sx.fillRect(0, 0, CONSTS.W, CONSTS.H);
     this.skyCache = sky;
 
-    // Mario Puffy Clouds
     this.cloudLayerCache = this.renderMarioClouds();
-
-    // Mario Rolling Green Hills
     this.hillLayerCache = this.renderMarioHills();
   }
 
@@ -69,33 +74,32 @@ export class CanvasRenderer {
       x.translate(cx, cy);
       x.scale(scale, scale);
 
-      // Cloud body
       x.fillStyle = '#ffffff';
       x.strokeStyle = INK;
       x.lineWidth = 2.5;
 
       x.beginPath();
-      x.arc(-24, 0, 16, 0, Math.PI * 2);
-      x.arc(0, -10, 22, 0, Math.PI * 2);
-      x.arc(24, 0, 16, 0, Math.PI * 2);
-      x.rect(-24, 0, 48, 16);
+      x.arc(-22, 0, 15, 0, Math.PI * 2);
+      x.arc(0, -9, 20, 0, Math.PI * 2);
+      x.arc(22, 0, 15, 0, Math.PI * 2);
+      x.rect(-22, 0, 44, 15);
       x.fill();
       x.stroke();
 
-      // Mario eyes on clouds
+      // Cloud eyes
       x.fillStyle = INK;
       x.beginPath();
-      x.ellipse(-6, -4, 2, 4.5, 0, 0, Math.PI * 2);
-      x.ellipse(6, -4, 2, 4.5, 0, 0, Math.PI * 2);
+      x.ellipse(-6, -3, 2, 4, 0, 0, Math.PI * 2);
+      x.ellipse(6, -3, 2, 4, 0, 0, Math.PI * 2);
       x.fill();
 
       x.restore();
     };
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 6; i++) {
       const cx = rand() * CONSTS.W;
-      const cy = 35 + rand() * 320;
-      const scale = 0.75 + rand() * 0.45;
+      const cy = 40 + rand() * 260;
+      const scale = 0.8 + rand() * 0.4;
       for (const offset of [-CONSTS.W, 0, CONSTS.W]) {
         drawMarioCloud(cx + offset, cy, scale);
       }
@@ -115,12 +119,12 @@ export class CanvasRenderer {
     x.lineWidth = 3;
 
     x.beginPath();
-    x.moveTo(0, CONSTS.H);
+    x.moveTo(0, CONSTS.GROUND_Y);
     for (let px = 0; px <= CONSTS.W; px += 4) {
-      const y = CONSTS.H - 90 + 24 * Math.sin((2 * Math.PI * 2 * px) / CONSTS.W + 0.5) + 12 * Math.sin((2 * Math.PI * 5 * px) / CONSTS.W);
+      const y = CONSTS.GROUND_Y - 50 + 20 * Math.sin((2 * Math.PI * 2 * px) / CONSTS.W + 0.4) + 8 * Math.sin((2 * Math.PI * 4 * px) / CONSTS.W);
       x.lineTo(px, y);
     }
-    x.lineTo(CONSTS.W, CONSTS.H);
+    x.lineTo(CONSTS.W, CONSTS.GROUND_Y);
     x.closePath();
     x.fill();
     x.stroke();
@@ -135,124 +139,118 @@ export class CanvasRenderer {
   }
 
   /**
-   * Classic Super Mario Green Warp Pipe
+   * Ground Warp Pipe
    */
-  private drawMarioPipe(p: { x: number; gy: number; gap: number; id: number }) {
+  private drawPipe(x: number, y: number, w: number, h: number) {
     const c = this.ctx;
-    const top = p.gy - p.gap / 2;
-    const bot = p.gy + p.gap / 2;
+    const capH = 18;
+    const overhang = 5;
 
-    const pipeWidth = CONSTS.PW;
-    const capHeight = 24;
-    const capOverhang = 7;
+    // Pipe Body
+    const bodyGrad = c.createLinearGradient(x, 0, x + w, 0);
+    bodyGrad.addColorStop(0, '#00a800');
+    bodyGrad.addColorStop(0.22, '#7ce800');
+    bodyGrad.addColorStop(0.45, '#00a800');
+    bodyGrad.addColorStop(0.85, '#006400');
+    bodyGrad.addColorStop(1, '#004200');
 
-    const renderPipeCylinder = (y0: number, y1: number, isTopPipe: boolean) => {
-      if (y1 <= y0) return;
+    c.fillStyle = bodyGrad;
+    c.fillRect(x, y + capH, w, h - capH);
+    c.strokeStyle = INK;
+    c.lineWidth = 2.5;
+    c.strokeRect(x, y + capH, w, h - capH);
 
-      const px = p.x;
-      const height = y1 - y0;
+    // Pipe Cap
+    const capX = x - overhang;
+    const capW = w + overhang * 2;
+    const capGrad = c.createLinearGradient(capX, 0, capX + capW, 0);
+    capGrad.addColorStop(0, '#00a800');
+    capGrad.addColorStop(0.22, '#8ef800');
+    capGrad.addColorStop(0.45, '#00a800');
+    capGrad.addColorStop(0.85, '#006400');
+    capGrad.addColorStop(1, '#004200');
 
-      // Pipe Body Gradient
-      const bodyGrad = c.createLinearGradient(px, 0, px + pipeWidth, 0);
-      bodyGrad.addColorStop(0, '#00a800');    // Mario green
-      bodyGrad.addColorStop(0.2, '#74d600');  // highlight line
-      bodyGrad.addColorStop(0.4, '#00a800');
-      bodyGrad.addColorStop(0.85, '#006400'); // dark green shadow
-      bodyGrad.addColorStop(1, '#004200');
+    c.fillStyle = capGrad;
+    c.fillRect(capX, y, capW, capH);
+    c.strokeRect(capX, y, capW, capH);
 
-      c.fillStyle = bodyGrad;
-      c.fillRect(px, y0, pipeWidth, height);
-      c.strokeStyle = INK;
-      c.lineWidth = 3;
-      c.strokeRect(px, y0, pipeWidth, height);
-
-      // Pipe Lip / Cap
-      const capY = isTopPipe ? y1 - capHeight : y0;
-      const capX = px - capOverhang;
-      const capW = pipeWidth + capOverhang * 2;
-
-      const capGrad = c.createLinearGradient(capX, 0, capX + capW, 0);
-      capGrad.addColorStop(0, '#00a800');
-      capGrad.addColorStop(0.2, '#8ae800');
-      capGrad.addColorStop(0.4, '#00a800');
-      capGrad.addColorStop(0.85, '#006400');
-      capGrad.addColorStop(1, '#004200');
-
-      c.fillStyle = capGrad;
-      c.fillRect(capX, capY, capW, capHeight);
-      c.strokeRect(capX, capY, capW, capHeight);
-
-      // Inner dark rim hole at pipe opening
-      c.fillStyle = '#002800';
-      if (isTopPipe) {
-        c.fillRect(capX + 2, y1 - 4, capW - 4, 4);
-      } else {
-        c.fillRect(capX + 2, y0, capW - 4, 4);
-      }
-    };
-
-    // Top Pipe
-    renderPipeCylinder(-6, top, true);
-    // Bottom Pipe
-    renderPipeCylinder(bot, CONSTS.H, false);
+    // Inner Opening
+    c.fillStyle = '#002800';
+    c.fillRect(capX + 2, y + 2, capW - 4, 3);
   }
 
+  /**
+   * Super Mario Ground (Brick & Grass)
+   */
   private drawGround(dist: number) {
     const c = this.ctx;
-    const y = CONSTS.H - CONSTS.GROUND;
+    const gy = CONSTS.GROUND_Y;
+    const gh = CONSTS.H - gy;
 
-    // Mario Brick Ground Base
-    c.fillStyle = '#d88b28'; // Mario ground orange/brown
-    c.fillRect(0, y, CONSTS.W, CONSTS.GROUND);
+    // Ground Base Orange / Brown
+    c.fillStyle = '#d88b28';
+    c.fillRect(0, gy, CONSTS.W, gh);
 
-    // Green Grass Fringe on top
+    // Top Green Grass Fringe
     c.fillStyle = '#00a800';
-    c.fillRect(0, y, CONSTS.W, 6);
+    c.fillRect(0, gy, CONSTS.W, 8);
     c.fillStyle = '#74d600';
-    c.fillRect(0, y, CONSTS.W, 2);
+    c.fillRect(0, gy, CONSTS.W, 3);
 
-    // Brick outline pattern
+    // Dark Divider Line
     c.strokeStyle = INK;
     c.lineWidth = 2.5;
     c.beginPath();
-    c.moveTo(0, y);
-    c.lineTo(CONSTS.W, y);
+    c.moveTo(0, gy);
+    c.lineTo(CONSTS.W, gy);
     c.stroke();
 
-    const off = dist % 32;
-    for (let x = -off; x < CONSTS.W; x += 32) {
+    // Brick Pattern
+    const off = dist % 28;
+    for (let x = -off; x < CONSTS.W; x += 28) {
       c.beginPath();
-      c.moveTo(x, y + 6);
+      c.moveTo(x, gy + 8);
       c.lineTo(x, CONSTS.H);
+      c.stroke();
+    }
+    for (let y = gy + 8; y < CONSTS.H; y += 18) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(CONSTS.W, y);
       c.stroke();
     }
   }
 
   /**
-   * HUD matching the exact style from the user's reference screenshot:
-   * Points: X
-   * Max Points: X
-   * Generation: X
+   * Classic Super Mario Arcade HUD
    */
   private drawHud(sim: Simulation) {
     const c = this.ctx;
     c.save();
 
-    c.font = '700 24px "IBM Plex Sans", -apple-system, sans-serif';
+    c.font = '700 16px "IBM Plex Mono", monospace';
     c.textAlign = 'left';
     c.textBaseline = 'top';
 
-    // Drop shadow
-    c.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    c.fillText(`Points: ${sim.genPoints}`, 22, 20);
-    c.fillText(`Max Points: ${sim.bestScore}`, 22, 54);
-    c.fillText(`Generation: ${sim.gen}`, 22, 88);
+    const pad = (num: number, size: number) => num.toString().padStart(size, '0');
 
-    // Foreground text
-    c.fillStyle = '#141414';
-    c.fillText(`Points: ${sim.genPoints}`, 20, 18);
-    c.fillText(`Max Points: ${sim.bestScore}`, 20, 52);
-    c.fillText(`Generation: ${sim.gen}`, 20, 86);
+    // Header values
+    const scoreStr = `MARIO\n${pad(sim.score, 6)}`;
+    const coinStr = `COINS\n🪙x${pad(sim.coins, 2)}`;
+    const worldStr = `WORLD\n 1-1`;
+    const genStr = `GEN\n ${sim.gen}`;
+
+    const drawPill = (txt: string, x: number, y: number) => {
+      c.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      c.fillText(txt, x + 1, y + 1);
+      c.fillStyle = '#ffffff';
+      c.fillText(txt, x, y);
+    };
+
+    drawPill(scoreStr, 18, 16);
+    drawPill(coinStr, 140, 16);
+    drawPill(worldStr, 260, 16);
+    drawPill(genStr, 360, 16);
 
     c.restore();
   }
@@ -261,64 +259,59 @@ export class CanvasRenderer {
     const c = this.ctx;
     c.setTransform(2, 0, 0, 2, 0, 0);
 
-    // Sky & Parallax Mario World
+    // Sky & Parallax World
     c.drawImage(this.skyCache, 0, 0, CONSTS.W, CONSTS.H);
     this.drawParallax(this.cloudLayerCache, sim.dist, 0.15);
-    this.drawParallax(this.hillLayerCache, sim.dist, 0.4);
+    this.drawParallax(this.hillLayerCache, sim.dist, 0.45);
 
-    // Super Mario Warp Pipes
-    for (const p of sim.pipes) {
-      this.drawMarioPipe(p);
+    // Render Obstacles (Pipes, Blocks, Coins, Goombas)
+    this.coinTick++;
+    const coinFrame = Math.floor(this.coinTick / 8) % 4;
+    const goombaFrame = Math.floor(sim.dist / 14) % 2;
+
+    for (const ob of sim.obstacles) {
+      if (ob.type === 'warp_pipe') {
+        this.drawPipe(ob.x, ob.y, ob.w, ob.h);
+      } else if (ob.type === 'block') {
+        const by = ob.bounceY ? ob.y + ob.bounceY : ob.y;
+        c.drawImage(questionBlockSprite, ob.x, by, ob.w, ob.h);
+      } else if (ob.type === 'coin' && !ob.collected) {
+        c.drawImage(coinSprites[coinFrame], ob.x, ob.y, ob.w, ob.h);
+      } else if (ob.type === 'goomba') {
+        if (ob.alive) {
+          c.drawImage(goombaSprites[goombaFrame], ob.x, ob.y, ob.w, ob.h);
+        } else {
+          // Squished Goomba
+          c.save();
+          c.translate(ob.x, ob.y + 14);
+          c.scale(1.2, 0.4);
+          c.drawImage(goombaSprites[0], 0, 0, ob.w, ob.h);
+          c.restore();
+        }
+      }
     }
 
     // Ground
     this.drawGround(sim.dist);
 
     // Mario Character
-    const mario = sim.mario;
-    if (mario) {
-      c.save();
-      c.translate(CONSTS.BX, mario.y);
+    const m = sim.mario;
+    c.save();
+    c.translate(CONSTS.MARIO_X, m.y);
 
-      // Rotation based on vertical speed
-      const angle = Math.max(-0.4, Math.min(0.6, mario.vy * 0.05));
-      c.rotate(angle);
-
-      const spriteIdx = !mario.alive ? 2 : (mario.vy < -1 ? 1 : 0);
-      c.drawImage(marioSprites[spriteIdx], -28, -32, 64, 64);
-      c.restore();
-
-      // Trajectory dots
-      if (mario.alive) {
-        c.fillStyle = 'rgba(255, 204, 0, 0.6)';
-        for (let k = 2; k < Math.min(18, mario.age); k += 3) {
-          const idx = (mario.ti - 1 - k + 48) % 24;
-          c.beginPath();
-          c.arc(CONSTS.BX - k * 3 - 6, mario.tr[idx], 2.5, 0, Math.PI * 2);
-          c.fill();
-        }
-      }
+    if (!m.alive) {
+      c.drawImage(marioDeadSprite, -6, -4, 48, 48);
+    } else if (!m.isGrounded) {
+      c.drawImage(marioJumpSprite, -6, -4, 48, 48);
+    } else {
+      c.drawImage(marioRunSprites[m.runFrame], -6, -4, 48, 48);
     }
+    c.restore();
 
-    // Particles (coin sparkles / feather bursts)
+    // Particles (coin sparkles / Goomba pops)
     ParticleSystem.updateAndDraw(c, sim.particles);
 
-    // HUD (Points, Max Points, Generation)
+    // HUD
     this.drawHud(sim);
-
-    // Flash banner on new generation
-    if (sim.flash > 0) {
-      c.save();
-      c.globalAlpha = Math.min(1, sim.flash * 1.5);
-      c.textAlign = 'center';
-      c.font = '900 42px "Lilita One", sans-serif';
-      c.lineWidth = 7;
-      c.strokeStyle = '#000000';
-      c.strokeText(`Generation ${sim.gen}`, CONSTS.W / 2, CONSTS.H * 0.35);
-      c.fillStyle = '#ffcc00';
-      c.fillText(`Generation ${sim.gen}`, CONSTS.W / 2, CONSTS.H * 0.35);
-      c.restore();
-      sim.flash -= 0.025;
-    }
   }
 }

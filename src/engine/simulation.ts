@@ -1,230 +1,363 @@
-import type { Pipe } from '../types';
-import { jevClient, JevGameState } from '../ai/jevClient';
+import { jevClient, JevMarioState } from '../ai/jevClient';
 import { sounds } from '../audio/soundEffects';
 
-export interface SimConstants {
-  W: number;
-  H: number;
-  BX: number;
-  R: number;
-  PW: number;
-  SPACING: number;
-  GRAV: number;
-  FLAP: number;
-  GROUND: number;
+export interface GroundObstacle {
+  id: number;
+  type: 'warp_pipe' | 'goomba' | 'block' | 'coin';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  alive?: boolean;
+  collected?: boolean;
+  hit?: boolean;
+  bounceY?: number;
 }
 
-export const CONSTS: SimConstants = {
+export const CONSTS = {
   W: 480,
   H: 640,
-  BX: 110,
-  R: 15,
-  PW: 68,
-  SPACING: 240,
-  GRAV: 0.48,
-  FLAP: -8.0,
-  GROUND: 20
+  GROUND_Y: 560, // Ground starts at y = 560 (80px tall)
+  MARIO_X: 85,
+  MARIO_H: 36,
+  GRAV: 0.65,
+  JUMP_IMPULSE: -12.5,
+  RUN_SPEED: 3.5
 };
-
-export interface MarioCharacter {
-  y: number;
-  vy: number;
-  alive: boolean;
-  score: number;
-  age: number;
-  tr: Float32Array;
-  ti: number;
-}
 
 export class Simulation {
   public gen: number = 1;
-  public bestScore: number = 4;
-  public genPoints: number = 4;
+  public score: number = 0;
+  public bestScore: number = 0;
+  public coins: number = 0;
   public dist: number = 0;
-  public pipes: Pipe[] = [];
-  public mario!: MarioCharacter;
-  public particles: Array<{ x: number; y: number; vx: number; vy: number; l: number; c: string; r: number }> = [];
-  public flash: number = 1;
   public paused: boolean = false;
   public humanControl: boolean = false;
+  public flash: number = 0;
 
-  private pipeId: number = 0;
-  private lastGy: number = CONSTS.H / 2;
+  // Mario State
+  public mario = {
+    y: CONSTS.GROUND_Y - CONSTS.MARIO_H,
+    vy: 0,
+    isGrounded: true,
+    alive: true,
+    runFrame: 0,
+    animTick: 0
+  };
+
+  public obstacles: GroundObstacle[] = [];
+  public particles: Array<{ x: number; y: number; vx: number; vy: number; l: number; c: string; r: number }> = [];
+
+  private nextSpawnX: number = 380;
+  private objId: number = 0;
 
   constructor() {
     this.restart();
   }
 
-  public addPipe(x: number) {
-    const id = this.pipeId++;
-    const gap = 165;
-    let gy = this.lastGy + (Math.random() * 2 - 1) * 160;
-    gy = Math.max(gap / 2 + 70, Math.min(CONSTS.H - CONSTS.GROUND - gap / 2 - 60, gy));
-    this.lastGy = gy;
-    this.pipes.push({ id, x, gy, gap });
-  }
-
-  public fillPipes() {
-    while (this.pipes.length === 0 || this.pipes[this.pipes.length - 1].x < CONSTS.W + 40) {
-      const prevX = this.pipes.length > 0 ? this.pipes[this.pipes.length - 1].x : 320;
-      this.addPipe(prevX + CONSTS.SPACING);
-    }
-  }
-
   public restart() {
     this.mario = {
-      y: 245,
+      y: CONSTS.GROUND_Y - CONSTS.MARIO_H,
       vy: 0,
+      isGrounded: true,
       alive: true,
-      score: 0,
-      age: 0,
-      tr: new Float32Array(24),
-      ti: 0
+      runFrame: 0,
+      animTick: 0
     };
-    this.pipes = [];
-    this.pipeId = 0;
-    this.lastGy = CONSTS.H / 2;
+    this.score = 0;
     this.dist = 0;
-    this.genPoints = 0;
+    this.obstacles = [];
     this.particles = [];
-    this.flash = 1;
+    this.nextSpawnX = 380;
+    this.objId = 0;
 
-    this.addPipe(280);
-    this.fillPipes();
+    // Seed initial obstacles
+    this.fillObstacles();
   }
 
-  public flap() {
+  public jump() {
     if (!this.mario.alive) {
       this.restart();
       return;
     }
-    this.mario.vy = CONSTS.FLAP;
-    sounds.playFlap();
+    if (this.mario.isGrounded) {
+      this.mario.vy = CONSTS.JUMP_IMPULSE;
+      this.mario.isGrounded = false;
+      sounds.playFlap();
+    }
   }
 
-  public burstMario() {
-    for (let i = 0; i < 14; i++) {
-      this.particles.push({
-        x: CONSTS.BX,
-        y: this.mario.y,
-        vx: (Math.random() - 0.5) * 6,
-        vy: (Math.random() - 0.7) * 7,
-        l: 1,
-        c: i % 2 === 0 ? '#ffcc00' : '#e52521',
-        r: Math.random() * 6
+  public spawnObstacle(x: number) {
+    const r = Math.random();
+    const id = this.objId++;
+
+    if (r < 0.42) {
+      // Warp Pipe
+      const pipeH = 48 + Math.floor(Math.random() * 28);
+      this.obstacles.push({
+        id,
+        type: 'warp_pipe',
+        x,
+        y: CONSTS.GROUND_Y - pipeH,
+        w: 54,
+        h: pipeH
+      });
+      // Floating question block above or after pipe
+      if (Math.random() < 0.5) {
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x + 90,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+      }
+    } else if (r < 0.78) {
+      // Walking Goomba
+      this.obstacles.push({
+        id,
+        type: 'goomba',
+        x,
+        y: CONSTS.GROUND_Y - 30,
+        w: 30,
+        h: 30,
+        alive: true
+      });
+    } else {
+      // Question Block & Coin cluster
+      this.obstacles.push({
+        id,
+        type: 'block',
+        x,
+        y: CONSTS.GROUND_Y - 110,
+        w: 32,
+        h: 32,
+        hit: false
+      });
+      this.obstacles.push({
+        id: this.objId++,
+        type: 'coin',
+        x: x + 60,
+        y: CONSTS.GROUND_Y - 110,
+        w: 22,
+        h: 22,
+        collected: false
       });
     }
+  }
+
+  public fillObstacles() {
+    while (this.nextSpawnX < CONSTS.W + 400) {
+      this.spawnObstacle(this.nextSpawnX);
+      this.nextSpawnX += 200 + Math.floor(Math.random() * 120);
+    }
+  }
+
+  public burstGoomba(x: number, y: number) {
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.6) * 5,
+        l: 1,
+        c: '#9b4a1b',
+        r: Math.random() * 4
+      });
+    }
+    sounds.playScore();
+  }
+
+  public popBlock(b: GroundObstacle) {
+    b.hit = true;
+    b.bounceY = -8;
+    this.coins++;
+    this.score += 100;
+    sounds.playScore();
+
+    // Spawn popping coin sparkle
+    for (let i = 0; i < 6; i++) {
+      this.particles.push({
+        x: b.x + 16,
+        y: b.y - 12,
+        vx: (Math.random() - 0.5) * 4,
+        vy: -4 - Math.random() * 3,
+        l: 1,
+        c: '#ffd700',
+        r: Math.random() * 3
+      });
+    }
+  }
+
+  public killMario() {
+    this.mario.alive = false;
+    this.mario.vy = -9;
     sounds.playCrash();
+
+    setTimeout(() => {
+      this.gen++;
+      this.restart();
+    }, 1400);
   }
 
   public step(nowMs: number) {
     if (this.paused) return;
 
-    const speed = 2.8;
+    const speed = CONSTS.RUN_SPEED;
     this.dist += speed;
-
-    // Move pipes
-    for (const p of this.pipes) {
-      p.x -= speed;
-    }
-    while (this.pipes.length > 1 && this.pipes[0].x + CONSTS.PW + 10 < -10) {
-      this.pipes.shift();
-    }
-    this.fillPipes();
-
-    // Identify current target pipe and next pipe
-    let targetPipe = this.pipes[0];
-    let nextPipe = this.pipes[1] || this.pipes[0];
-
-    for (let i = 0; i < this.pipes.length; i++) {
-      if (this.pipes[i].x + CONSTS.PW > CONSTS.BX - CONSTS.R) {
-        targetPipe = this.pipes[i];
-        nextPipe = this.pipes[i + 1] || targetPipe;
-        break;
-      }
-    }
+    this.nextSpawnX -= speed;
 
     const m = this.mario;
 
     if (m.alive) {
-      const gapTop = Math.round(targetPipe.gy - targetPipe.gap / 2);
-      const gapBot = Math.round(targetPipe.gy + targetPipe.gap / 2);
-      const pipeX = Math.round(targetPipe.x - CONSTS.BX);
+      // Running animation
+      if (m.isGrounded) {
+        m.animTick++;
+        if (m.animTick % 6 === 0) {
+          m.runFrame = (m.runFrame + 1) % 3;
+        }
+      }
 
-      const nextGapTop = Math.round(nextPipe.gy - nextPipe.gap / 2);
-      const nextGapBot = Math.round(nextPipe.gy + nextPipe.gap / 2);
-      const nextPipeX = Math.round(nextPipe.x - CONSTS.BX);
+      // Physics integration
+      m.vy += CONSTS.GRAV;
+      m.y += m.vy;
 
-      // Trajectory predictions (0.1s is ~6 frames, 0.2s is ~12 frames)
-      const g = CONSTS.GRAV;
-      const y01 = Math.round(m.y + m.vy * 6 + 0.5 * g * 36);
-      const y02 = Math.round(m.y + m.vy * 12 + 0.5 * g * 144);
+      // Ground collision
+      if (m.y >= CONSTS.GROUND_Y - CONSTS.MARIO_H) {
+        m.y = CONSTS.GROUND_Y - CONSTS.MARIO_H;
+        m.vy = 0;
+        m.isGrounded = true;
+      }
 
-      const state: JevGameState = {
-        bird_y: Math.round(m.y),
-        bird_speed: Math.round(m.vy),
-        y_after_0_1s: y01,
-        y_after_0_2s: y02,
-        pipe_x: pipeX,
-        gap_top: gapTop,
-        gap_bottom: gapBot,
-        room_above: Math.round(m.y - gapTop),
-        room_below: Math.round(gapBot - m.y),
-        next_pipe_x: nextPipeX,
-        next_gap_top: nextGapTop,
-        next_gap_bottom: nextGapBot
+      // Move obstacles & Goombas
+      for (const ob of this.obstacles) {
+        ob.x -= speed;
+        // Goombas walk leftward slightly faster
+        if (ob.type === 'goomba' && ob.alive) {
+          ob.x -= 1.2;
+        }
+        // Block bounce decay
+        if (ob.bounceY && ob.bounceY < 0) {
+          ob.bounceY += 1.5;
+          if (ob.bounceY > 0) ob.bounceY = 0;
+        }
+      }
+
+      // Clean offscreen obstacles
+      while (this.obstacles.length > 0 && this.obstacles[0].x + this.obstacles[0].w < -50) {
+        this.obstacles.shift();
+      }
+      this.fillObstacles();
+
+      // Find nearest threat for Jev
+      let nearestObs: GroundObstacle | null = null;
+      let nextObs: GroundObstacle | null = null;
+
+      for (const ob of this.obstacles) {
+        if (ob.type === 'coin' || (ob.type === 'goomba' && !ob.alive)) continue;
+        const dist = ob.x - CONSTS.MARIO_X;
+        if (dist > -ob.w) {
+          if (!nearestObs) {
+            nearestObs = ob;
+          } else if (!nextObs) {
+            nextObs = ob;
+            break;
+          }
+        }
+      }
+
+      const obsDist = nearestObs ? Math.max(0, Math.round(nearestObs.x - CONSTS.MARIO_X)) : 300;
+      const obsType = nearestObs ? nearestObs.type : 'none';
+      const obsH = nearestObs ? nearestObs.h : 0;
+      const nextDist = nextObs ? Math.max(0, Math.round(nextObs.x - CONSTS.MARIO_X)) : 450;
+      const nextType = nextObs ? nextObs.type : 'none';
+
+      // Telemetry state sent to Jev
+      const state: JevMarioState = {
+        mario_y: Math.round(CONSTS.GROUND_Y - CONSTS.MARIO_H - m.y),
+        mario_vy: +m.vy.toFixed(1),
+        is_grounded: m.isGrounded,
+        obstacle_type: obsType === 'warp_pipe' ? 'warp_pipe' : (obsType === 'goomba' ? 'goomba' : 'none'),
+        obstacle_dist: obsDist,
+        obstacle_height: obsH,
+        next_obstacle: nextType === 'warp_pipe' ? 'warp_pipe' : (nextType === 'goomba' ? 'goomba' : 'none'),
+        next_dist: nextDist,
+        run_speed: speed
       };
 
-      // If AI is in control, ask Jev
+      // AI decision tick
       if (!this.humanControl) {
-        jevClient.decide(state, nowMs).then(decision => {
-          if (decision.shouldJump && m.alive) {
-            this.flap();
+        jevClient.decide(state, nowMs).then(dec => {
+          if (dec.shouldJump && m.alive && m.isGrounded) {
+            this.jump();
           }
         });
       }
 
-      // Physics update
-      m.vy += CONSTS.GRAV;
-      m.y += m.vy;
-      m.age++;
+      // Collisions with obstacles
+      const mx = CONSTS.MARIO_X;
+      const my = m.y;
+      const mw = 26;
+      const mh = CONSTS.MARIO_H;
 
-      // Trail
-      m.tr[m.ti] = m.y;
-      m.ti = (m.ti + 1) % 24;
-
-      // Score
-      if (targetPipe.id > this.genPoints) {
-        this.genPoints = targetPipe.id;
-        if (this.genPoints > this.bestScore) {
-          this.bestScore = this.genPoints;
+      for (const ob of this.obstacles) {
+        if (ob.type === 'coin' && !ob.collected) {
+          // Coin collection
+          if (mx + mw > ob.x && mx < ob.x + ob.w && my + mh > ob.y && my < ob.y + ob.h) {
+            ob.collected = true;
+            this.coins++;
+            this.score += 50;
+            sounds.playScore();
+          }
+          continue;
         }
-        sounds.playScore();
+
+        if (ob.type === 'block' && !ob.hit) {
+          // Hit block from below
+          if (mx + mw > ob.x && mx < ob.x + ob.w && m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 10) {
+            m.vy = 2; // bounce down
+            this.popBlock(ob);
+          }
+          continue;
+        }
+
+        if (ob.type === 'goomba' && ob.alive) {
+          if (mx + mw > ob.x + 4 && mx < ob.x + ob.w - 4 && my + mh >= ob.y) {
+            // Stomp on Goomba from above
+            if (m.vy > 0 && my + mh <= ob.y + 16) {
+              ob.alive = false;
+              m.vy = -8.5; // bounce up!
+              this.score += 200;
+              this.burstGoomba(ob.x + 15, ob.y + 15);
+            } else {
+              // Collide from side
+              this.killMario();
+              return;
+            }
+          }
+          continue;
+        }
+
+        if (ob.type === 'warp_pipe') {
+          // Pipe collision
+          if (mx + mw > ob.x + 6 && mx < ob.x + ob.w - 6 && my + mh > ob.y + 6) {
+            this.killMario();
+            return;
+          }
+        }
       }
 
-      // Collision detection
-      const topEdge = gapTop;
-      const botEdge = gapBot;
-      let crashed = m.y < CONSTS.R || m.y > CONSTS.H - CONSTS.GROUND - CONSTS.R;
-
-      if (
-        !crashed &&
-        CONSTS.BX + CONSTS.R > targetPipe.x - 4 &&
-        CONSTS.BX - CONSTS.R < targetPipe.x + CONSTS.PW + 4 &&
-        (m.y - CONSTS.R < topEdge || m.y + CONSTS.R > botEdge)
-      ) {
-        crashed = true;
+      // Score for surviving distance
+      this.score += 1;
+      if (this.score > this.bestScore) {
+        this.bestScore = this.score;
       }
-
-      if (crashed) {
-        m.alive = false;
-        this.burstMario();
-        // Respawn after short delay
-        setTimeout(() => {
-          this.gen++;
-          this.restart();
-        }, 1200);
-      }
+    } else {
+      // Dead Mario falling animation
+      m.vy += CONSTS.GRAV * 0.8;
+      m.y += m.vy;
     }
   }
 }

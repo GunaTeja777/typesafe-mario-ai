@@ -42,9 +42,9 @@ function initApp() {
     sounds.playClick();
   };
 
-  // Canvas click & Space key triggers flap in manual mode or testing
+  // Canvas click & Space key triggers jump in manual mode or testing
   gameCanvas.addEventListener('pointerdown', () => {
-    sim.flap();
+    sim.jump();
   });
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -52,7 +52,7 @@ function initApp() {
 
     if (e.code === 'Space') {
       e.preventDefault();
-      sim.flap();
+      sim.jump();
     } else if (e.key === 'p' || e.key === 'P') {
       sim.paused = !sim.paused;
       pauseBtn.textContent = sim.paused ? '▶ Resume' : '⏸ Pause';
