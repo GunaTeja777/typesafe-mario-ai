@@ -238,33 +238,209 @@ export function makeMarioJump(): HTMLCanvasElement {
 
 export function makeMarioDead(): HTMLCanvasElement {
   const [c, x] = mk(48, 48);
-  x.translate(24, 28);
+  x.translate(24, 26);
 
-  // Shocked eyes
-  x.fillStyle = '#fcd0a1';
+  // Red Cap (Front-facing with M emblem)
+  x.fillStyle = '#e52521';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+
+  // Cap Dome
   x.beginPath();
-  x.arc(0, -5, 9, 0, Math.PI * 2);
+  x.ellipse(0, -14, 13, 8, 0, Math.PI, Math.PI * 2);
+  x.lineTo(13, -10);
+  x.quadraticCurveTo(0, -8, -13, -10);
+  x.closePath();
   x.fill();
   x.stroke();
 
+  // Cap Visor
+  x.beginPath();
+  x.ellipse(0, -10, 11, 3.5, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // White "M" Emblem
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.arc(0, -14, 4, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+  x.fillStyle = '#e52521';
+  x.font = 'bold 5px sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillText('M', 0, -14);
+
+  // Peach Face
+  x.fillStyle = '#fcd0a1';
+  x.beginPath();
+  x.arc(0, -4, 9, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Big Peach Nose in Center
+  x.beginPath();
+  x.ellipse(0, -4, 4.5, 3.5, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Classic Brown Mustache
+  x.fillStyle = '#4a2505';
+  x.beginPath();
+  x.ellipse(0, -1, 7, 2.8, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Shocked Open Eyes
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.ellipse(-4, -7, 2.5, 3.5, 0, 0, Math.PI * 2);
+  x.ellipse(4, -7, 2.5, 3.5, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+  x.fillStyle = '#0055d4';
+  x.beginPath();
+  x.arc(-4, -7, 1.3, 0, Math.PI * 2);
+  x.arc(4, -7, 1.3, 0, Math.PI * 2);
+  x.fill();
+
+  // Hair Sideburns
+  x.fillStyle = '#4a2505';
+  x.beginPath();
+  x.arc(-8, -5, 3, 0, Math.PI * 2);
+  x.arc(8, -5, 3, 0, Math.PI * 2);
+  x.fill();
+
+  // Red Shirt Sleeves
+  x.fillStyle = '#e52521';
+  x.strokeStyle = INK;
+  x.lineWidth = 1.8;
+  x.beginPath();
+  x.roundRect(-14, 4, 7, 5, 2);
+  x.roundRect(7, 4, 7, 5, 2);
+  x.fill();
+  x.stroke();
+
+  // Outstretched White Gloves
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.arc(-13, 7, 3.8, 0, Math.PI * 2);
+  x.arc(13, 7, 3.8, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Blue Overalls Body
+  x.fillStyle = '#0055d4';
   x.strokeStyle = INK;
   x.lineWidth = 2;
   x.beginPath();
-  x.moveTo(1, -9); x.lineTo(7, -5);
-  x.moveTo(7, -9); x.lineTo(1, -5);
+  x.roundRect(-7, 3, 14, 11, 3);
+  x.fill();
   x.stroke();
 
-  // Cap askew
-  x.fillStyle = '#e52521';
+  // Yellow Buttons
+  x.fillStyle = '#ffd700';
   x.beginPath();
-  x.ellipse(-3, -16, 11, 6, -0.3, 0, Math.PI * 2);
+  x.arc(-3, 6, 1.5, 0, Math.PI * 2);
+  x.arc(3, 6, 1.5, 0, Math.PI * 2);
+  x.fill();
+
+  // Blue Legs
+  x.fillStyle = '#0055d4';
+  x.beginPath();
+  x.roundRect(-7, 13, 5, 4, 1);
+  x.roundRect(2, 13, 5, 4, 1);
+  x.fill();
+  x.stroke();
+
+  // Brown Boots
+  x.fillStyle = '#6b3e15';
+  x.beginPath();
+  x.ellipse(-5, 16, 4.5, 3, 0, 0, Math.PI * 2);
+  x.ellipse(5, 16, 4.5, 3, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  return c;
+}
+
+export function makeMarioFall(): HTMLCanvasElement {
+  const [c, x] = mk(48, 48);
+  x.translate(24, 28);
+
+  // Red Cap
+  x.fillStyle = '#e52521';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+  x.beginPath();
+  x.ellipse(0, -13, 12, 7, 0.08, Math.PI, Math.PI * 2);
+  x.lineTo(13, -10);
+  x.quadraticCurveTo(0, -8, -13, -10);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Cap Visor
+  x.beginPath();
+  x.ellipse(7, -10, 7, 3, 0.1, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Face
+  x.fillStyle = '#fcd0a1';
+  x.beginPath();
+  x.arc(0, -4, 9, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Eye
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.ellipse(3, -6, 2.5, 3.5, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+  x.fillStyle = '#0055d4';
+  x.beginPath();
+  x.arc(4.2, -6, 1.4, 0, Math.PI * 2);
+  x.fill();
+
+  // Nose & Mustache
+  x.fillStyle = '#fcd0a1';
+  x.beginPath();
+  x.ellipse(7, -4, 4.5, 3.5, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  x.fillStyle = '#4a2505';
+  x.beginPath();
+  x.ellipse(4, -1, 6.5, 3, 0, 0, Math.PI * 2);
   x.fill();
   x.stroke();
 
   // Body
   x.fillStyle = '#0055d4';
   x.beginPath();
-  x.roundRect(-6, 3, 12, 9, 3);
+  x.roundRect(-7, 3, 14, 10, 3);
+  x.fill();
+  x.stroke();
+
+  // Arms out for landing
+  x.fillStyle = '#ffffff';
+  x.strokeStyle = INK;
+  x.lineWidth = 1.8;
+  x.beginPath();
+  x.arc(-9, 8, 3.5, 0, Math.PI * 2);
+  x.arc(9, 8, 3.5, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Legs slightly spread forward/back for landing
+  x.fillStyle = '#6b3e15';
+  x.lineWidth = 2;
+  x.beginPath();
+  x.ellipse(-5, 14, 4.5, 3.5, 0, 0, Math.PI * 2);
+  x.ellipse(5, 14, 4.5, 3.5, 0, 0, Math.PI * 2);
   x.fill();
   x.stroke();
 
@@ -551,6 +727,7 @@ export const marioRunSprites = [
   makeMarioRunFrame(2)
 ];
 export const marioJumpSprite = makeMarioJump();
+export const marioFallSprite = makeMarioFall();
 export const marioDeadSprite = makeMarioDead();
 export const goombaSprites = [makeGoomba(0), makeGoomba(1)];
 export const koopaSprites = [makeKoopa(0), makeKoopa(1)];
