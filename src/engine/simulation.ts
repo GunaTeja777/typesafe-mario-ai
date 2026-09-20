@@ -1,9 +1,5 @@
-import type { BirdState, Pipe, SimSettings, SpeciesSpec } from '../types';
-import { Brain } from '../ai/brain';
-import { GeneticEngine } from '../ai/genetic';
-import { DEFAULT_SETTINGS, DEFAULT_SPECIES, HUMAN_SPECIES } from '../ai/presets';
-import { HumanController } from './human';
-import { EnvironmentEngine } from './environment';
+import type { Pipe } from '../types';
+import { jevClient, JevGameState } from '../ai/jevClient';
 import { sounds } from '../audio/soundEffects';
 
 export interface SimConstants {
@@ -22,56 +18,47 @@ export const CONSTS: SimConstants = {
   W: 480,
   H: 640,
   BX: 110,
-  R: 13,
-  PW: 62,
-  SPACING: 235,
-  GRAV: 0.5,
-  FLAP: -8.2,
-  GROUND: 18
+  R: 15,
+  PW: 68,
+  SPACING: 240,
+  GRAV: 0.48,
+  FLAP: -8.0,
+  GROUND: 20
 };
+
+export interface MarioCharacter {
+  y: number;
+  vy: number;
+  alive: boolean;
+  score: number;
+  age: number;
+  tr: Float32Array;
+  ti: number;
+}
 
 export class Simulation {
   public gen: number = 1;
-  public bestScore: number = 0;
-  public genPoints: number = 0;
+  public bestScore: number = 4;
+  public genPoints: number = 4;
   public dist: number = 0;
   public pipes: Pipe[] = [];
-  public birds: BirdState[] = [];
+  public mario!: MarioCharacter;
   public particles: Array<{ x: number; y: number; vx: number; vy: number; l: number; c: string; r: number }> = [];
-  public viewer: (BirdState | null)[] = [null, null, null];
-  public history: number[][] = [[], [], []];
-  public wins: number[] = [0, 0, 0];
-  public mutRate: number = 0.3;
   public flash: number = 1;
-
   public paused: boolean = false;
-  public speedIdx: number = 2; // default 4x
-  public readonly speeds: number[] = [1, 2, 4, 8, 16, 32];
-
-  public speciesList: SpeciesSpec[] = [...DEFAULT_SPECIES];
-  public settings: SimSettings = { ...DEFAULT_SETTINGS };
-
-  public human: HumanController = new HumanController();
-  public env: EnvironmentEngine = new EnvironmentEngine();
+  public humanControl: boolean = false;
 
   private pipeId: number = 0;
   private lastGy: number = CONSTS.H / 2;
-  public onMessage?: (msg: string) => void;
 
   constructor() {
     this.restart();
   }
 
-  public newPop(): Brain[][] {
-    return this.speciesList.map(s =>
-      Array.from({ length: this.settings.popPerSpecies }, () => new Brain(s.h, undefined, s.activation))
-    );
-  }
-
   public addPipe(x: number) {
     const id = this.pipeId++;
-    const gap = this.settings.difficultyRamp ? Math.max(116, 170 - id * 3) : 170;
-    let gy = this.lastGy + (Math.random() * 2 - 1) * 170;
+    const gap = 165;
+    let gy = this.lastGy + (Math.random() * 2 - 1) * 160;
     gy = Math.max(gap / 2 + 70, Math.min(CONSTS.H - CONSTS.GROUND - gap / 2 - 60, gy));
     this.lastGy = gy;
     this.pipes.push({ id, x, gy, gap });
@@ -79,244 +66,165 @@ export class Simulation {
 
   public fillPipes() {
     while (this.pipes.length === 0 || this.pipes[this.pipes.length - 1].x < CONSTS.W + 40) {
-      const prevX = this.pipes.length > 0 ? this.pipes[this.pipes.length - 1].x : 340;
+      const prevX = this.pipes.length > 0 ? this.pipes[this.pipes.length - 1].x : 320;
       this.addPipe(prevX + CONSTS.SPACING);
     }
   }
 
-  public spawn(brainLists: Brain[][]) {
-    this.birds = [];
-    let idCounter = 0;
-
-    brainLists.forEach((list, sIdx) => {
-      list.forEach(brain => {
-        this.birds.push({
-          id: idCounter++,
-          sp: sIdx,
-          brain,
-          y: CONSTS.H / 2 + (Math.random() - 0.5) * 20,
-          vy: 0,
-          alive: true,
-          fit: 0,
-          age: 0,
-          score: 0,
-          jx: (Math.random() - 0.5) * 8,
-          tr: new Float32Array(24),
-          ti: 0
-        });
-      });
-    });
-
-    if (this.settings.humanMode) {
-      this.birds.push(this.human.init(CONSTS.H / 2));
-    }
-
+  public restart() {
+    this.mario = {
+      y: 245,
+      vy: 0,
+      alive: true,
+      score: 0,
+      age: 0,
+      tr: new Float32Array(24),
+      ti: 0
+    };
     this.pipes = [];
     this.pipeId = 0;
     this.lastGy = CONSTS.H / 2;
     this.dist = 0;
     this.genPoints = 0;
-    this.viewer = [null, null, null];
-    this.addPipe(340);
+    this.particles = [];
+    this.flash = 1;
+
+    this.addPipe(280);
     this.fillPipes();
   }
 
-  public burst(b: BirdState) {
-    if (this.particles.length > 350) return;
-    const color = b.isHuman ? HUMAN_SPECIES.color : this.speciesList[b.sp]?.color || '#ff5a4d';
-    for (let i = 0; i < 7; i++) {
+  public flap() {
+    if (!this.mario.alive) {
+      this.restart();
+      return;
+    }
+    this.mario.vy = CONSTS.FLAP;
+    sounds.playFlap();
+  }
+
+  public burstMario() {
+    for (let i = 0; i < 14; i++) {
       this.particles.push({
-        x: CONSTS.BX + b.jx,
-        y: b.y,
-        vx: (Math.random() - 0.8) * 3.6,
-        vy: (Math.random() - 0.6) * 4.6,
+        x: CONSTS.BX,
+        y: this.mario.y,
+        vx: (Math.random() - 0.5) * 6,
+        vy: (Math.random() - 0.7) * 7,
         l: 1,
-        c: color,
+        c: i % 2 === 0 ? '#ffcc00' : '#e52521',
         r: Math.random() * 6
       });
     }
+    sounds.playCrash();
   }
 
-  public step() {
-    this.env.update(this.settings.windEnabled, this.settings.windForce);
+  public step(nowMs: number) {
+    if (this.paused) return;
 
-    const baseSpeed = this.settings.difficultyRamp ? Math.min(4.8, 3 + this.genPoints * 0.04) : 3;
-    const sp = baseSpeed;
-    this.dist += sp;
+    const speed = 2.8;
+    this.dist += speed;
 
     // Move pipes
     for (const p of this.pipes) {
-      p.x -= sp;
+      p.x -= speed;
     }
-    while (this.pipes.length > 1 && this.pipes[0].x + CONSTS.PW + 6 < -10) {
+    while (this.pipes.length > 1 && this.pipes[0].x + CONSTS.PW + 10 < -10) {
       this.pipes.shift();
     }
     this.fillPipes();
 
-    // Identify target obstacle pipe
+    // Identify current target pipe and next pipe
     let targetPipe = this.pipes[0];
-    for (const p of this.pipes) {
-      if (p.x + CONSTS.PW + 6 > CONSTS.BX - CONSTS.R) {
-        targetPipe = p;
+    let nextPipe = this.pipes[1] || this.pipes[0];
+
+    for (let i = 0; i < this.pipes.length; i++) {
+      if (this.pipes[i].x + CONSTS.PW > CONSTS.BX - CONSTS.R) {
+        targetPipe = this.pipes[i];
+        nextPipe = this.pipes[i + 1] || targetPipe;
         break;
       }
     }
 
-    const top = targetPipe.gy - targetPipe.gap / 2;
-    const bot = targetPipe.gy + targetPipe.gap / 2;
-    const nx = Math.min(1, Math.max(0, (targetPipe.x + CONSTS.PW + 6 - CONSTS.BX) / (CONSTS.SPACING + CONSTS.PW)));
+    const m = this.mario;
 
-    // Inputs: [bird_y / H, dist_to_pipe / norm, gap_top / H, gap_bot / H]
-    const inp = [0, nx, top / CONSTS.H, bot / CONSTS.H];
-    let aliveCount = 0;
+    if (m.alive) {
+      const gapTop = Math.round(targetPipe.gy - targetPipe.gap / 2);
+      const gapBot = Math.round(targetPipe.gy + targetPipe.gap / 2);
+      const pipeX = Math.round(targetPipe.x - CONSTS.BX);
 
-    for (const b of this.birds) {
-      if (!b.alive) continue;
+      const nextGapTop = Math.round(nextPipe.gy - nextPipe.gap / 2);
+      const nextGapBot = Math.round(nextPipe.gy + nextPipe.gap / 2);
+      const nextPipeX = Math.round(nextPipe.x - CONSTS.BX);
 
-      if (b.isHuman) {
-        // Human controls handled via event trigger
-        if (this.human.flapQueued) {
-          b.vy = CONSTS.FLAP;
-          this.human.flapQueued = false;
-        }
-      } else {
-        inp[0] = b.y / CONSTS.H;
-        if (b.brain.forward(inp) > 0.5) {
-          b.vy = CONSTS.FLAP;
-        }
+      // Trajectory predictions (0.1s is ~6 frames, 0.2s is ~12 frames)
+      const g = CONSTS.GRAV;
+      const y01 = Math.round(m.y + m.vy * 6 + 0.5 * g * 36);
+      const y02 = Math.round(m.y + m.vy * 12 + 0.5 * g * 144);
+
+      const state: JevGameState = {
+        bird_y: Math.round(m.y),
+        bird_speed: Math.round(m.vy),
+        y_after_0_1s: y01,
+        y_after_0_2s: y02,
+        pipe_x: pipeX,
+        gap_top: gapTop,
+        gap_bottom: gapBot,
+        room_above: Math.round(m.y - gapTop),
+        room_below: Math.round(gapBot - m.y),
+        next_pipe_x: nextPipeX,
+        next_gap_top: nextGapTop,
+        next_gap_bottom: nextGapBot
+      };
+
+      // If AI is in control, ask Jev
+      if (!this.humanControl) {
+        jevClient.decide(state, nowMs).then(decision => {
+          if (decision.shouldJump && m.alive) {
+            this.flap();
+          }
+        });
       }
 
-      // Wind turbulence
-      if (this.settings.windEnabled) {
-        b.vy += this.env.wind * 0.15;
-      }
+      // Physics update
+      m.vy += CONSTS.GRAV;
+      m.y += m.vy;
+      m.age++;
 
-      b.vy += CONSTS.GRAV;
-      b.y += b.vy;
-      b.age++;
+      // Trail
+      m.tr[m.ti] = m.y;
+      m.ti = (m.ti + 1) % 24;
 
-      // Fitness calculation: progress + staying centered in the gap
-      b.fit += 1 + (1 - Math.min(1, Math.abs(b.y - targetPipe.gy) / CONSTS.H));
-      b.score = targetPipe.id;
-
-      // Trail record
-      b.tr[b.ti] = b.y;
-      b.ti = (b.ti + 1) % 24;
-
-      // Collision checks
-      let dead = b.y < CONSTS.R || b.y > CONSTS.H - CONSTS.GROUND - CONSTS.R + 4;
-      if (
-        !dead &&
-        CONSTS.BX + CONSTS.R > targetPipe.x - 6 &&
-        CONSTS.BX - CONSTS.R < targetPipe.x + CONSTS.PW + 6 &&
-        (b.y - CONSTS.R < top || b.y + CONSTS.R > bot)
-      ) {
-        dead = true;
-      }
-
-      if (dead) {
-        b.alive = false;
-        b.fit += b.score * 300;
-        this.burst(b);
-        if (b.isHuman) {
-          this.human.onCrash();
-        }
-      } else {
-        if (!b.isHuman) aliveCount++;
-      }
-    }
-
-    if (aliveCount > 0) {
+      // Score
       if (targetPipe.id > this.genPoints) {
         this.genPoints = targetPipe.id;
+        if (this.genPoints > this.bestScore) {
+          this.bestScore = this.genPoints;
+        }
         sounds.playScore();
       }
-      if (this.genPoints > this.bestScore) {
-        const prev = this.bestScore;
-        this.bestScore = this.genPoints;
-        if (this.bestScore >= 5 && this.bestScore % 5 === 0 && this.bestScore !== prev) {
-          sounds.playFanfare();
-          this.notify(`🎉 New record: ${this.bestScore} pipes cleared in Generation ${this.gen}!`);
-        }
+
+      // Collision detection
+      const topEdge = gapTop;
+      const botEdge = gapBot;
+      let crashed = m.y < CONSTS.R || m.y > CONSTS.H - CONSTS.GROUND - CONSTS.R;
+
+      if (
+        !crashed &&
+        CONSTS.BX + CONSTS.R > targetPipe.x - 4 &&
+        CONSTS.BX - CONSTS.R < targetPipe.x + CONSTS.PW + 4 &&
+        (m.y - CONSTS.R < topEdge || m.y + CONSTS.R > botEdge)
+      ) {
+        crashed = true;
       }
-    } else {
-      this.endGeneration();
-    }
-  }
 
-  public endGeneration() {
-    const topScores = [0, 0, 0];
-    const topFit = [0, 0, 0];
-
-    for (const b of this.birds) {
-      if (b.isHuman) continue;
-      topScores[b.sp] = Math.max(topScores[b.sp], b.score);
-      topFit[b.sp] = Math.max(topFit[b.sp], b.fit);
-    }
-
-    topScores.forEach((score, i) => this.history[i].push(score));
-
-    const evolution = GeneticEngine.evolve(this.birds, this.speciesList, this.settings, this.bestScore);
-    this.wins[evolution.bestSpeciesIdx]++;
-
-    const winner = this.speciesList[evolution.bestSpeciesIdx];
-    this.notify(
-      `Generation ${this.gen} finished. ${winner.name} (${winner.arch}) led with ${topScores[evolution.bestSpeciesIdx]} pipes! Mutation rate: ${Math.round(evolution.mutRate * 100)}%.`
-    );
-
-    this.gen++;
-    this.flash = 1;
-    this.mutRate = evolution.mutRate;
-    this.spawn(evolution.nextPop);
-  }
-
-  public pickViewers() {
-    for (let s = 0; s < 3; s++) {
-      const v = this.viewer[s];
-      if (!v || !v.alive) {
-        let bestCandidate: BirdState | null = null;
-        for (const b of this.birds) {
-          if (b.sp === s && b.alive && (!bestCandidate || b.fit > bestCandidate.fit)) {
-            bestCandidate = b;
-          }
-        }
-        this.viewer[s] = bestCandidate;
+      if (crashed) {
+        m.alive = false;
+        this.burstMario();
+        // Respawn after short delay
+        setTimeout(() => {
+          this.gen++;
+          this.restart();
+        }, 1200);
       }
     }
-  }
-
-  public restart() {
-    this.gen = 1;
-    this.bestScore = 0;
-    this.genPoints = 0;
-    this.history = [[], [], []];
-    this.wins = [0, 0, 0];
-    this.mutRate = this.settings.mutationRate;
-    this.flash = 1;
-    this.particles = [];
-    this.spawn(this.newPop());
-    this.notify(`Restarted simulation. Generation 1 is running with ${this.birds.length} birds.`);
-  }
-
-  public skipGen() {
-    for (const b of this.birds) {
-      if (b.alive) {
-        b.alive = false;
-        b.fit += b.score * 300;
-      }
-    }
-    this.endGeneration();
-  }
-
-  public loadChampion(brain: Brain, speciesIdx: number = 0) {
-    const pop = this.newPop();
-    pop[speciesIdx][0] = Brain.clone(brain);
-    pop[speciesIdx][1] = Brain.clone(brain);
-    this.spawn(pop);
-    this.notify(`Loaded champion brain into ${this.speciesList[speciesIdx].name}!`);
-  }
-
-  private notify(msg: string) {
-    if (this.onMessage) this.onMessage(msg);
   }
 }
