@@ -275,7 +275,9 @@ export class CanvasRenderer {
     const scoreStr = `MARIO\n${pad(sim.score, 6)}`;
     const coinStr = `COINS\n🪙x${pad(sim.coins, 2)}`;
     const fireStr = `AMMO 🔥\n${pad(sim.fireAmmo, 2)} BULLETS`;
-    const worldStr = `WORLD\n 1-1`;
+    const stage = sim.getFlowStage();
+    const stageEmoji = stage.stage === 1 ? '🟢' : stage.stage === 2 ? '🟡' : '🔴';
+    const worldStr = `WORLD ${stageEmoji}\n ${stage.tag} ${stage.name}`;
     const genStr = `GEN\n ${sim.gen}`;
 
     const drawPill = (txt: string, x: number, y: number, highlight: boolean = false) => {
@@ -300,8 +302,8 @@ export class CanvasRenderer {
     drawPill(scoreStr, 34, 18);
     drawPill(coinStr, 175, 18);
     drawPill(fireStr, 310, 18, sim.fireAmmo > 0);
-    drawPill(worldStr, 480, 18);
-    drawPill(genStr, 615, 18);
+    drawPill(worldStr, 480, 18, stage.stage === 3);
+    drawPill(genStr, 630, 18);
 
     c.restore();
   }

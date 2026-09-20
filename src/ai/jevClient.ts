@@ -203,8 +203,8 @@ export class JevClient {
           instructions: 'Choose Mario optimal action: 0 = RUN (safe), 1 = JUMP (clear pipe / stomp enemy / hit ? box for coins), 2 = SHOOT (fireball at oncoming enemy)',
           criteria: [
             'Level 0 (RUN): Running safely, no hazards or item boxes directly ahead',
-            'Level 1 (JUMP): Jump now! Pipe ahead (35-85px), enemy in front (35-75px), or overhead ? block/coin (40-85px)',
-            'Level 2 (SHOOT): Shoot fireball now! Oncoming enemy (goomba/koopa) in range (60-220px)'
+            'Level 1 (JUMP): Jump now! Pipe ahead (35-105px), enemy in front (35-90px), or overhead ? block/coin (16-60px)',
+            'Level 2 (SHOOT): Shoot fireball now! Oncoming enemy (goomba/koopa) in range (60-240px)'
           ]
         }
       }
@@ -266,9 +266,9 @@ export class JevClient {
 - Run Speed: ${state.run_speed}px/frame
 
 Rules:
-1. If overhead ? box is close (item_box_dist between 18px and 55px) and Mario is grounded: action="JUMP" to hit with head for +5 bullets!
-2. If ground hazard is approaching (hazard_dist between 35px and 90px) and Mario is grounded: action="JUMP" to leap over!
-3. If enemy is ahead (hazard_dist between 60px and 220px) and fire_ammo > 0: action="SHOOT" to fire fireball!
+1. If overhead ? box is close (item_box_dist between 16px and 60px) and Mario is grounded: action="JUMP" to hit with head for +5 bullets!
+2. If ground hazard is approaching (hazard_dist between 35px and 105px) and Mario is grounded: action="JUMP" to leap over!
+3. If enemy is ahead (hazard_dist between 60px and 240px) and fire_ammo > 0: action="SHOOT" to fire fireball!
 4. Otherwise: action="RUN".
 
 Respond ONLY in valid JSON:
@@ -320,13 +320,13 @@ Respond ONLY in valid JSON:
 
         // Deterministic check if model omitted fields
         if (!action) {
-          if (state.item_box !== 'none' && state.item_box_dist <= 35 && state.item_box_dist >= 14 && state.is_grounded) {
+          if (state.item_box !== 'none' && state.item_box_dist <= 60 && state.item_box_dist >= 14 && state.is_grounded) {
             action = 'JUMP';
             reason = 'Hit ? Box with head for +5 Fire Bullets & Coin!';
-          } else if (state.hazard_dist <= 85 && state.hazard_dist >= 35 && state.is_grounded) {
+          } else if (state.hazard_dist <= 105 && state.hazard_dist >= 35 && state.is_grounded) {
             action = 'JUMP';
             reason = `Leap over ${state.ground_hazard}`;
-          } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 240 && state.hazard_dist > 80 && state.can_shoot) {
+          } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 240 && state.hazard_dist > 60 && state.can_shoot) {
             action = 'SHOOT';
             reason = `Blast ${state.ground_hazard} with fire bullet`;
           } else {
@@ -471,19 +471,19 @@ Respond ONLY in valid JSON:
       p0 = 0.94;
       p1 = 0.04;
       p2 = 0.02;
-    } else if (state.item_box !== 'none' && state.item_box_dist <= 35 && state.item_box_dist >= 14) {
+    } else if (state.item_box !== 'none' && state.item_box_dist <= 60 && state.item_box_dist >= 14) {
       action = 'JUMP';
       reason = `Hit ${state.item_box === 'question_block' ? '? Block' : state.item_box} with head for +5 bullets & coin!`;
       p1 = 0.94;
       p0 = 0.04;
       p2 = 0.02;
-    } else if (state.hazard_dist <= 85 && state.hazard_dist >= 35) {
+    } else if (state.hazard_dist <= 105 && state.hazard_dist >= 35) {
       action = 'JUMP';
       reason = `Leap over ${state.ground_hazard}`;
       p1 = 0.95;
       p0 = 0.03;
       p2 = 0.02;
-    } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 240 && state.hazard_dist > 80 && state.can_shoot) {
+    } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 240 && state.hazard_dist > 60 && state.can_shoot) {
       action = 'SHOOT';
       reason = `Fire fireball at ${state.ground_hazard} (${state.fire_ammo} bullets remaining)`;
       p2 = 0.92;

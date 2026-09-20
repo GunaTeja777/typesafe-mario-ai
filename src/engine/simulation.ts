@@ -64,6 +64,7 @@ export class Simulation {
   public humanControl: boolean = false;
   public flash: number = 0;
   public poppingCoins: PoppingCoin[] = [];
+  public lastStage: number = 1;
 
   // Mario State
   public mario = {
@@ -104,6 +105,7 @@ export class Simulation {
     this.coins = 0;
     this.fireAmmo = 0; // Starts at 0, awarded by hitting ? boxes with head!
     this.dist = 0;
+    this.lastStage = 1;
     this.obstacles = [];
     this.particles = [];
     this.floatingScores = [];
@@ -111,18 +113,31 @@ export class Simulation {
     this.poppingCoins = [];
     this.objId = 0;
 
-    // Introductory ? question box overhead so player/AI can immediately hit it with head!
+    // Introductory gentle runway for starting flow (gives LLM time to initialize):
+    // 1. Initial ? question block at x = 360 (Mario starts at 110, so 250px clear runway ~1.9s)
     this.obstacles.push({
       id: this.objId++,
       type: 'block',
-      x: 230,
+      x: 360,
       y: CONSTS.GROUND_Y - 120,
       w: 32,
       h: 32,
       hit: false
     });
 
-    this.nextSpawnX = 390;
+    // 2. Introductory bonus coin at x = 540 to reward early navigation
+    this.obstacles.push({
+      id: this.objId++,
+      type: 'coin',
+      x: 540,
+      y: CONSTS.GROUND_Y - 110,
+      w: 22,
+      h: 22,
+      collected: false
+    });
+
+    // First ground hazard spawns far ahead at x = 860 (~5.7 seconds from start)!
+    this.nextSpawnX = 860;
     this.fillObstacles();
   }
 
@@ -168,118 +183,282 @@ export class Simulation {
     });
   }
 
+  public getFlowStage(): { stage: number; name: string; tag: string } {
+    if (this.dist < 1200) {
+      return { stage: 1, name: 'WARMUP', tag: '1-1' };
+    } else if (this.dist < 2800) {
+      return { stage: 2, name: 'FLOW', tag: '1-2' };
+    } else {
+      return { stage: 3, name: 'RUSH', tag: '1-3' };
+    }
+  }
+
+  public getNextObstacleGap(): number {
+    if (this.dist < 1200) {
+      // Starting flow: generous, sparse spacing (580px - 740px gap)
+      // Gives slow LLM responses 4.5 - 5.5 seconds of runway per obstacle
+      return 580 + Math.floor(Math.random() * 160);
+    } else if (this.dist < 2800) {
+      // Transitioning flow: smoothly interpolating down from ~540px to ~380px
+      const progress = (this.dist - 1200) / 1600;
+      const base = 540 - progress * 160;
+      return Math.round(base + Math.random() * 90);
+    } else {
+      // Late flow: denser & faster action (250px - 340px gap)
+      const lateProgress = Math.min(1, (this.dist - 2800) / 3000);
+      const base = 340 - lateProgress * 80;
+      return Math.round(base + Math.random() * 80);
+    }
+  }
+
   public spawnObstacle(x: number) {
     const r = Math.random();
     const id = this.objId++;
 
-    if (r < 0.35) {
-      // Classic Warp Pipe (short: 48, medium: 66, tall: 82)
-      const heights = [48, 66, 82];
-      const pipeH = heights[Math.floor(Math.random() * heights.length)];
-      this.obstacles.push({
-        id,
-        type: 'warp_pipe',
-        x,
-        y: CONSTS.GROUND_Y - pipeH,
-        w: 56,
-        h: pipeH
-      });
-      // Floating ? question block 120px after pipe
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'block',
-        x: x + 120,
-        y: CONSTS.GROUND_Y - 120,
-        w: 32,
-        h: 32,
-        hit: false
-      });
-    } else if (r < 0.65) {
-      // Walking Goomba with ? question box overhead so Mario can hit it & shoot the Goomba!
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'block',
-        x: x - 50,
-        y: CONSTS.GROUND_Y - 120,
-        w: 32,
-        h: 32,
-        hit: false
-      });
-      this.obstacles.push({
-        id,
-        type: 'goomba',
-        x,
-        y: CONSTS.GROUND_Y - 30,
-        w: 30,
-        h: 30,
-        alive: true
-      });
-      // Coin arc overhead
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'coin',
-        x: x + 50,
-        y: CONSTS.GROUND_Y - 110,
-        w: 22,
-        h: 22,
-        collected: false
-      });
-    } else if (r < 0.82) {
-      // Koopa Troopa (Turtle) with ? question block overhead
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'block',
-        x: x - 45,
-        y: CONSTS.GROUND_Y - 120,
-        w: 32,
-        h: 32,
-        hit: false
-      });
-      this.obstacles.push({
-        id,
-        type: 'koopa',
-        x,
-        y: CONSTS.GROUND_Y - 34,
-        w: 32,
-        h: 34,
-        alive: true
-      });
+    if (this.dist < 1200) {
+      // --- STARTING FLOW (Sparse, single forgiving obstacles) ---
+      if (r < 0.45) {
+        // Classic short or medium Warp Pipe with generous clearance
+        const heights = [46, 56];
+        const pipeH = heights[Math.floor(Math.random() * heights.length)];
+        this.obstacles.push({
+          id,
+          type: 'warp_pipe',
+          x,
+          y: CONSTS.GROUND_Y - pipeH,
+          w: 56,
+          h: pipeH
+        });
+        // Friendly ? block 130px after pipe
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x + 130,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+      } else if (r < 0.80) {
+        // Single walking Goomba with an overhead ? block right before it
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x - 60,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id,
+          type: 'goomba',
+          x,
+          y: CONSTS.GROUND_Y - 30,
+          w: 30,
+          h: 30,
+          alive: true
+        });
+      } else {
+        // Safe reward cluster: no deadly hazard, just ? block and coins
+        this.obstacles.push({
+          id,
+          type: 'block',
+          x,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'coin',
+          x: x + 48,
+          y: CONSTS.GROUND_Y - 110,
+          w: 22,
+          h: 22,
+          collected: false
+        });
+      }
+    } else if (this.dist < 2800) {
+      // --- MID FLOW (Moderate density & mixed variety) ---
+      if (r < 0.35) {
+        const heights = [48, 66];
+        const pipeH = heights[Math.floor(Math.random() * heights.length)];
+        this.obstacles.push({
+          id,
+          type: 'warp_pipe',
+          x,
+          y: CONSTS.GROUND_Y - pipeH,
+          w: 56,
+          h: pipeH
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x + 110,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+      } else if (r < 0.65) {
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x - 45,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id,
+          type: 'goomba',
+          x,
+          y: CONSTS.GROUND_Y - 30,
+          w: 30,
+          h: 30,
+          alive: true
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'coin',
+          x: x + 45,
+          y: CONSTS.GROUND_Y - 110,
+          w: 22,
+          h: 22,
+          collected: false
+        });
+      } else if (r < 0.82) {
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x - 40,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id,
+          type: 'koopa',
+          x,
+          y: CONSTS.GROUND_Y - 34,
+          w: 32,
+          h: 34,
+          alive: true
+        });
+      } else {
+        this.obstacles.push({
+          id,
+          type: 'brick',
+          x,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x + 34,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'coin',
+          x: x + 76,
+          y: CONSTS.GROUND_Y - 120,
+          w: 22,
+          h: 22,
+          collected: false
+        });
+      }
     } else {
-      // Breakable Brick Block & Question Block
-      this.obstacles.push({
-        id,
-        type: 'brick',
-        x,
-        y: CONSTS.GROUND_Y - 120,
-        w: 32,
-        h: 32,
-        hit: false
-      });
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'block',
-        x: x + 34,
-        y: CONSTS.GROUND_Y - 120,
-        w: 32,
-        h: 32,
-        hit: false
-      });
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'coin',
-        x: x + 80,
-        y: CONSTS.GROUND_Y - 120,
-        w: 22,
-        h: 22,
-        collected: false
-      });
+      // --- LATE FLOW (High density, faster action, multi-obstacle challenges) ---
+      if (r < 0.35) {
+        const heights = [48, 66, 82];
+        const pipeH = heights[Math.floor(Math.random() * heights.length)];
+        this.obstacles.push({
+          id,
+          type: 'warp_pipe',
+          x,
+          y: CONSTS.GROUND_Y - pipeH,
+          w: 56,
+          h: pipeH
+        });
+        // In late flow, occasionally chain with an oncoming Goomba
+        if (Math.random() < 0.45) {
+          this.obstacles.push({
+            id: this.objId++,
+            type: 'goomba',
+            x: x + 95,
+            y: CONSTS.GROUND_Y - 30,
+            w: 30,
+            h: 30,
+            alive: true
+          });
+        }
+      } else if (r < 0.65) {
+        this.obstacles.push({
+          id,
+          type: 'goomba',
+          x,
+          y: CONSTS.GROUND_Y - 30,
+          w: 30,
+          h: 30,
+          alive: true
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'coin',
+          x: x + 40,
+          y: CONSTS.GROUND_Y - 110,
+          w: 22,
+          h: 22,
+          collected: false
+        });
+      } else if (r < 0.85) {
+        this.obstacles.push({
+          id,
+          type: 'koopa',
+          x,
+          y: CONSTS.GROUND_Y - 34,
+          w: 32,
+          h: 34,
+          alive: true
+        });
+      } else {
+        this.obstacles.push({
+          id,
+          type: 'brick',
+          x,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+        this.obstacles.push({
+          id: this.objId++,
+          type: 'block',
+          x: x + 34,
+          y: CONSTS.GROUND_Y - 120,
+          w: 32,
+          h: 32,
+          hit: false
+        });
+      }
     }
   }
 
   public fillObstacles() {
     while (this.nextSpawnX < CONSTS.W + 500) {
       this.spawnObstacle(this.nextSpawnX);
-      this.nextSpawnX += 260 + Math.floor(Math.random() * 150);
+      this.nextSpawnX += this.getNextObstacleGap();
     }
   }
 
@@ -369,6 +548,14 @@ export class Simulation {
     const speed = CONSTS.RUN_SPEED;
     this.dist += speed;
     this.nextSpawnX -= speed;
+
+    const currentStage = this.getFlowStage().stage;
+    if (currentStage > this.lastStage) {
+      this.lastStage = currentStage;
+      const stageInfo = this.getFlowStage();
+      this.addScorePopup(`⚡ WORLD ${stageInfo.tag}: ${stageInfo.name} PACING!`, CONSTS.MARIO_X + 15, this.mario.y - 34, '#facc15');
+      sounds.playFanfare();
+    }
 
     const m = this.mario;
 
