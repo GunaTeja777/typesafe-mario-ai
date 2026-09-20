@@ -40,6 +40,7 @@ export interface BrainInstance {
   out: number;      // output probability
   activation: ActivationFunction;
   forward(x: number[] | Float32Array): number;
+  toJSON(name: string, species: string, score: number, gen: number): SerializedBrain;
 }
 
 export interface Pipe {

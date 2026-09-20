@@ -1,688 +1,87 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bird Brain: a flock of angry birds that evolves to fly</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  --sky-top:#63b9ec;
-  --sky-bot:#d3eefa;
-  --ink:#141a3a;
-  --muted:#3b4478;
-  --line:#141a3a;
-  --btn-bg:#ffffff;
-  --btn-ink:#141a3a;
-  --panel:#1b2350;
-  --red:#ff5a4d;
-  --yellow:#ffc933;
-  --green:#5fd38d;
-  --blue:#4aa8e8;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --sky-top:#0d1330;
-    --sky-bot:#1a2352;
-    --ink:#f2f4ff;
-    --muted:#aab2e6;
-    --line:#050822;
-    --btn-bg:#e9edff;
-    --panel:#222c62;
-  }
-}
-:root[data-theme="dark"]{
-  --sky-top:#0d1330;
-  --sky-bot:#1a2352;
-  --ink:#f2f4ff;
-  --muted:#aab2e6;
-  --line:#050822;
-  --btn-bg:#e9edff;
-  --panel:#222c62;
-}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-*,*::before,*::after{box-sizing:border-box}
-body{
-  margin:0;
-  color:var(--ink);
-  font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-  background:linear-gradient(180deg,var(--sky-top),var(--sky-bot) 70%);
-  background-color:var(--sky-top);
-  background-attachment:fixed;
-  min-height:100vh;
-}
-.wrap{max-width:1160px;margin:0 auto;padding:22px clamp(14px,3vw,28px) 44px}
-
-/* header */
-.top{display:flex;flex-wrap:wrap;gap:18px 30px;align-items:center;justify-content:space-between;margin-bottom:22px}
-.brand{display:flex;align-items:center;gap:14px}
-.logo{width:74px;height:74px;flex:none;transform:rotate(-8deg)}
-h1{margin:0;font:400 clamp(38px,6vw,60px)/.95 'Lilita One','Arial Black',system-ui,sans-serif;color:#fff;
-  -webkit-text-stroke:7px var(--line);paint-order:stroke fill;letter-spacing:.01em;text-shadow:0 4px 0 var(--line)}
-.sub{margin:8px 0 0;font-size:clamp(14px,1.6vw,16px);color:var(--muted);max-width:52ch;line-height:1.45;font-weight:500}
-.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.btn{font:600 14px 'IBM Plex Sans',system-ui,sans-serif;color:var(--btn-ink);background:var(--btn-bg);
-  border:2.5px solid var(--line);border-radius:12px;padding:8px 14px;box-shadow:0 3px 0 var(--line);cursor:pointer;
-  transition:transform .08s,box-shadow .08s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 4px 0 var(--line)}
-.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--line)}
-.btn:focus-visible,input:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
-.pill{display:flex;align-items:center;gap:10px;background:var(--btn-bg);color:var(--btn-ink);border:2.5px solid var(--line);
-  border-radius:12px;padding:6px 12px;box-shadow:0 3px 0 var(--line);font-size:14px;font-weight:600}
-.pill input[type=range]{width:110px;accent-color:#e5372f}
-.pill b{font:600 13px 'IBM Plex Mono',ui-monospace,monospace;min-width:30px;text-align:right}
-.pill input[type=checkbox]{width:17px;height:17px;accent-color:#e5372f}
-.pill label{cursor:pointer}
-
-/* layout */
-.grid{display:grid;grid-template-columns:minmax(300px,480px) minmax(0,1fr);gap:26px;align-items:start}
-@media (max-width:880px){.grid{grid-template-columns:1fr}.stage{max-width:480px;margin:0 auto;width:100%}}
-.frame{border:4px solid var(--line);border-radius:20px;overflow:hidden;line-height:0;box-shadow:0 7px 0 var(--line);background:#63b9ec}
-#game{display:block;width:100%;height:auto;aspect-ratio:3/4}
-.ticker{margin-top:20px;padding:11px 14px;min-height:46px;border:2.5px solid var(--line);border-radius:12px;background:var(--btn-bg);
-  color:var(--btn-ink);box-shadow:0 3px 0 var(--line);font-size:14px;line-height:1.4;font-weight:500}
-.side{display:flex;flex-direction:column;gap:18px;min-width:0}
-.card{background:var(--panel);border:3px solid var(--line);border-radius:16px;box-shadow:0 5px 0 var(--line);padding:11px 14px 10px;color:#eef0ff}
-.chead{display:flex;align-items:center;gap:10px}
-.chead b{font:400 21px/1 'Lilita One','Arial Black',system-ui,sans-serif;letter-spacing:.01em}
-.face{width:36px;height:36px;flex:none}
-.wins{margin-left:auto;font:600 12px 'IBM Plex Mono',ui-monospace,monospace;background:#0f1538;color:#dfe3ff;padding:4px 10px;border-radius:8px}
-.csub{margin:6px 0 0;font-size:12.5px;color:#aab2e6;min-height:18px}
-.net{display:block;width:100%;height:auto;aspect-ratio:420/220}
-.cfoot{font-size:12px;color:#8d95c9;border-top:1px dashed rgba(255,255,255,.18);padding-top:7px;margin-top:2px}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:#cfd4f7;margin:6px 0 2px}
-.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;background:var(--c);border:2px solid #0f1538;vertical-align:-1px}
-#chart{display:block;width:100%;height:auto;aspect-ratio:420/180}
-
-/* explainer */
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:30px 0 0;padding:0;list-style:none;counter-reset:s}
-@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
-.steps li{counter-increment:s;background:var(--btn-bg);color:var(--btn-ink);border:2.5px solid var(--line);border-radius:14px;
-  box-shadow:0 4px 0 var(--line);padding:14px 14px 12px;font-weight:600;font-size:15px;line-height:1.3;position:relative}
-.steps li::before{content:counter(s);position:absolute;top:-14px;left:12px;width:28px;height:28px;border-radius:50%;
-  border:2.5px solid var(--line);display:grid;place-items:center;font:400 16px 'Lilita One',sans-serif;color:#fff;background:var(--c)}
-.steps li:nth-child(1){--c:#e5372f}.steps li:nth-child(2){--c:#e0a100}.steps li:nth-child(3){--c:#2b8fd6}.steps li:nth-child(4){--c:#2f9e63}
-.steps li span{display:block;font-weight:400;color:#4a5288;margin-top:4px;font-size:13.5px}
-.foot{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
-.kbd{font:600 12px 'IBM Plex Mono',ui-monospace,monospace;background:var(--btn-bg);color:var(--btn-ink);border:2px solid var(--line);border-radius:6px;padding:0 6px}
-
-/* record mode */
-#exitCine{display:none;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:5;opacity:.5}
-#exitCine:hover{opacity:1}
-body.cine .controls,body.cine .steps,body.cine .foot,body.cine .sub{display:none}
-body.cine #exitCine{display:block}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bird Brain: Evolutionary Neural Network Simulation & Game</title>
+  <meta name="description" content="Watch an AI flock of angry birds teach itself to fly through obstacles using neuroevolution, genetic algorithms, and neural networks — or jump in and challenge the flock yourself!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <canvas class="logo" id="logo" width="148" height="148" aria-hidden="true"></canvas>
-      <div>
-        <h1>Bird Brain</h1>
-        <p class="sub">A flock of angry birds teaches itself to fly. No dataset and no backpropagation. Only the survivors pass on their weights.</p>
-      </div>
-    </div>
-    <div class="controls">
-      <button class="btn" id="pause">Pause</button>
-      <div class="pill"><label for="speed">Speed</label><input id="speed" type="range" min="0" max="5" value="2"><b id="speedLbl">4x</b></div>
-      <div class="pill"><input type="checkbox" id="hard"><label for="hard">Difficulty ramp</label></div>
-      <button class="btn" id="skip">Skip generation</button>
-      <button class="btn" id="reset">Restart</button>
-      <button class="btn" id="cine">Record mode</button>
-    </div>
-  </header>
-  <button class="btn" id="exitCine">Exit record mode</button>
-
-  <main class="grid">
-    <section class="stage">
-      <div class="frame"><canvas id="game" aria-label="Angry birds learning to fly through towers"></canvas></div>
-      <div class="ticker" id="ticker" aria-live="polite">Generation 1 is running with 120 random brains.</div>
-    </section>
-    <aside class="side" id="nets">
-      <div class="card chartcard">
-        <div class="chead"><b>Who is learning fastest?</b></div>
-        <div class="legend">
-          <span><i style="--c:#ff5a4d"></i>Scarlet, 4-4-1</span>
-          <span><i style="--c:#9aa3d6"></i>Ash, 4-8-1</span>
-          <span><i style="--c:#ffb03a"></i>Rust, 4-16-1</span>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <canvas class="logo" id="logo" width="160" height="160" aria-hidden="true"></canvas>
+        <div>
+          <h1>Bird Brain</h1>
+          <p class="sub">A flock of angry birds teaches itself to fly through obstacles using neuroevolution. No datasets, no backpropagation. Only survivors pass on their synaptic weights.</p>
         </div>
-        <canvas id="chart"></canvas>
-        <div class="cfoot">Best score (pipes cleared) reached by each brain size, generation by generation.</div>
       </div>
-    </aside>
-  </main>
+      <div class="controls">
+        <button class="btn" id="pause">⏸ Pause</button>
+        <div class="pill">
+          <label for="speed">Speed</label>
+          <input id="speed" type="range" min="0" max="5" value="2">
+          <b id="speedLbl">4x</b>
+        </div>
+        <div class="pill">
+          <input type="checkbox" id="hard">
+          <label for="hard">Difficulty Ramp</label>
+        </div>
+        <button class="btn" id="humanMode">🎮 Play vs AI</button>
+        <button class="btn" id="soundToggle">🔊 Sound On</button>
+        <button class="btn" id="skip">Skip Gen</button>
+        <button class="btn" id="reset">Restart</button>
+        <button class="btn" id="openLab">🧪 Lab</button>
+        <button class="btn" id="openVault">💾 Vault</button>
+        <button class="btn" id="openHelp">❓ Guide</button>
+        <button class="btn" id="cine">Record Mode</button>
+      </div>
+    </header>
 
-  <ol class="steps">
-    <li>Spawn random brains<span>120 birds, three brain sizes, random weights.</span></li>
-    <li>Everyone flies<span>Each bird reads 4 numbers every frame and decides: flap or wait.</span></li>
-    <li>Survivors breed<span>The birds that got furthest mix their weights.</span></li>
-    <li>Mutate and repeat<span>Small random changes show up as yellow lines in the network.</span></li>
-  </ol>
-  <p class="foot">Reading the networks: a green line is a positive weight, red is negative, thicker means stronger, yellow was just mutated, and a ring around a neuron is its bias. Keys: <span class="kbd">Space</span> pause, <span class="kbd">N</span> next generation, <span class="kbd">R</span> restart, <span class="kbd">C</span> record mode, <span class="kbd">Up</span> and <span class="kbd">Down</span> change speed.</p>
-</div>
+    <button class="btn" id="exitCine">Exit Record Mode</button>
 
-<script>
-(() => {
-'use strict';
-const $ = id => document.getElementById(id);
-const W = 480, H = 640, BX = 110, R = 13, PW = 62, SPACING = 235, GRAV = 0.5, FLAP = -8.2, POP = 40, GROUND = 18;
-const INK = '#141a3a';
-const SPECS = [
-  { h: 4,  color: '#ff5a4d', name: 'Scarlet', arch: '4-4-1' },
-  { h: 8,  color: '#9aa3d6', name: 'Ash',     arch: '4-8-1' },
-  { h: 16, color: '#ffb03a', name: 'Rust',    arch: '4-16-1' }
-];
-const BIRDS = [
-  { body: '#e8382d', dark: '#a91f16', belly: '#f9d2b0' },
-  { body: '#5d6486', dark: '#3a4062', belly: '#c9cde0' },
-  { body: '#e08a22', dark: '#a85c10', belly: '#f7dca4' }
-];
-const SPEEDS = [1, 2, 4, 8, 16, 32];
-const INPUT_NAMES = ['bird y', 'pipe x', 'gap top', 'gap bottom'];
-const F_UI = '"IBM Plex Sans",system-ui,sans-serif';
-const F_MONO = '"IBM Plex Mono",ui-monospace,monospace';
-const F_DISP = '"Lilita One","Arial Black",system-ui,sans-serif';
+    <main class="grid">
+      <section class="stage">
+        <div class="frame">
+          <canvas id="game" aria-label="Flock of birds learning to navigate towers in real time"></canvas>
+        </div>
+        <div class="ticker" id="ticker" aria-live="polite">
+          Generation 1 is running with 120 random neural brains.
+        </div>
+      </section>
 
-/* ---------- helpers ---------- */
-function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function gauss(){let u=0;while(!u)u=Math.random();const v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
-function hash(a,b,c){const n=Math.sin(a*127.1+b*311.7+c*74.7)*43758.5453;return n-Math.floor(n)}
-function rr(c,x,y,w,h,r){c.beginPath();if(c.roundRect)c.roundRect(x,y,w,h,r);else c.rect(x,y,w,h)}
-function mk(w,h){const c=document.createElement('canvas');c.width=w*2;c.height=h*2;const x=c.getContext('2d');x.scale(2,2);return [c,x]}
+      <aside class="side" id="nets">
+        <div class="card chartcard">
+          <div class="chead"><b>Who is learning fastest?</b></div>
+          <div class="legend">
+            <span><i style="--c:#ff5a4d"></i>Scarlet (4-4-1)</span>
+            <span><i style="--c:#9aa3d6"></i>Ash (4-8-1)</span>
+            <span><i style="--c:#ffb03a"></i>Rust (4-16-1)</span>
+          </div>
+          <canvas id="chart" aria-label="Learning curves showing generation progress"></canvas>
+          <div class="cfoot">Best score (obstacles cleared) reached by each species, generation by generation.</div>
+        </div>
+      </aside>
+    </main>
 
-/* ---------- neural network ---------- */
-// param layout: W1[h*4] | b1[h] | W2[h] | b2[1]  => 6h+1 params
-class Brain{
-  constructor(h,p){
-    this.h=h; this.n=6*h+1;
-    this.p=p||Float32Array.from({length:this.n},()=>Math.random()*2-1);
-    this.m=new Uint8Array(this.n);
-    this.a0=new Float32Array(4); this.a1=new Float32Array(h); this.out=.5;
-  }
-  forward(x){
-    const h=this.h,p=this.p;
-    for(let i=0;i<4;i++)this.a0[i]=x[i];
-    let s2=p[6*h];
-    for(let j=0;j<h;j++){
-      let s=p[4*h+j];
-      for(let i=0;i<4;i++)s+=p[j*4+i]*x[i];
-      const a=Math.tanh(s);this.a1[j]=a;s2+=p[5*h+j]*a;
-    }
-    this.out=1/(1+Math.exp(-s2));
-    return this.out;
-  }
-  static clone(b){return new Brain(b.h,Float32Array.from(b.p))}
-  static child(a,b,rate,sd){
-    const c=new Brain(a.h);
-    for(let i=0;i<c.n;i++){
-      let v=(b&&Math.random()<.5)?b.p[i]:a.p[i];
-      if(Math.random()<rate){v+=gauss()*sd;c.m[i]=1}
-      c.p[i]=Math.max(-3,Math.min(3,v));
-    }
-    return c;
-  }
-}
+    <ol class="steps">
+      <li>Spawn random brains<span>120 birds across three neural architectures with randomized weights.</span></li>
+      <li>Everyone flies<span>Each bird reads 4 inputs (altitude, distance, gaps) every frame and decides: flap or wait.</span></li>
+      <li>Survivors breed<span>The furthest-flying birds pass their synaptic weights to the next generation via crossover.</span></li>
+      <li>Mutate and repeat<span>Subtle Gaussian mutations (yellow highlights) discover optimal aerodynamic policies.</span></li>
+    </ol>
 
-/* ---------- state ---------- */
-let gen=1,best=0,genPoints=0,pipes=[],pipeId=0,lastGy=H/2,dist=0,birds=[],particles=[];
-let viewer=[null,null,null],history=[[],[],[]],wins=[0,0,0],mutRate=.3,flash=1;
-let paused=false,spIdx=2,hard=false,uiTick=0;
+    <p class="foot">
+      <b>Reading the networks:</b> Green connections denote positive weights, red is negative, thicker lines indicate stronger influence, and yellow pulses highlight recent mutations.
+      <br>
+      <b>Keyboard shortcuts:</b> <span class="kbd">Space</span> / <span class="kbd">Click</span> Flap (Human Mode) or Pause, <span class="kbd">H</span> Play vs AI, <span class="kbd">N</span> Next Gen, <span class="kbd">R</span> Restart, <span class="kbd">M</span> Sound, <span class="kbd">↑</span>/<span class="kbd">↓</span> Speed, <span class="kbd">C</span> Record Mode.
+    </p>
+  </div>
 
-function newPop(){return SPECS.map(s=>Array.from({length:POP},()=>new Brain(s.h)))}
-function addPipe(x){
-  const id=pipeId++;
-  const gap=hard?Math.max(118,170-id*3):170;
-  let gy=lastGy+(Math.random()*2-1)*170;
-  gy=Math.max(gap/2+70,Math.min(H-GROUND-gap/2-60,gy));
-  lastGy=gy;
-  pipes.push({x,id,gy,gap});
-}
-function fillPipes(){while(pipes[pipes.length-1].x<W+40)addPipe(pipes[pipes.length-1].x+SPACING)}
-function spawn(lists){
-  birds=[];
-  lists.forEach((list,s)=>list.forEach(br=>birds.push({
-    sp:s,brain:br,y:H/2+(Math.random()-.5)*20,vy:0,alive:true,fit:0,age:0,score:0,
-    jx:(Math.random()-.5)*8,tr:new Float32Array(24),ti:0
-  })));
-  pipes=[];pipeId=0;lastGy=H/2;dist=0;genPoints=0;viewer=[null,null,null];
-  addPipe(340);fillPipes();
-}
-function say(msg){$('ticker').textContent=msg}
-function burst(b){
-  if(particles.length>320)return;
-  const c=BIRDS[b.sp].body;
-  for(let i=0;i<6;i++)particles.push({x:BX+b.jx,y:b.y,vx:(Math.random()-.8)*3.4,vy:(Math.random()-.6)*4.4,l:1,c,r:Math.random()*6});
-}
-
-/* ---------- simulation ---------- */
-function step(){
-  const sp=hard?Math.min(4.8,3+genPoints*.04):3;
-  dist+=sp;
-  for(const p of pipes)p.x-=sp;
-  while(pipes.length>1&&pipes[0].x+PW+6<-10)pipes.shift();
-  fillPipes();
-  let np=pipes[0];
-  for(const p of pipes){if(p.x+PW+6>BX-R){np=p;break}}
-  const top=np.gy-np.gap/2,bot=np.gy+np.gap/2;
-  const nx=Math.min(1,Math.max(0,(np.x+PW+6-BX)/(SPACING+PW)));
-  const inp=[0,nx,top/H,bot/H];
-  let alive=0;
-  for(const b of birds){
-    if(!b.alive)continue;
-    inp[0]=b.y/H;
-    if(b.brain.forward(inp)>.5)b.vy=FLAP;
-    b.vy+=GRAV;b.y+=b.vy;b.age++;
-    b.fit+=1+(1-Math.min(1,Math.abs(b.y-np.gy)/H));
-    b.score=np.id;
-    b.tr[b.ti]=b.y;b.ti=(b.ti+1)%24;
-    let dead=b.y<R||b.y>H-GROUND-R+4;
-    if(!dead&&BX+R>np.x-6&&BX-R<np.x+PW+6&&(b.y-R<top||b.y+R>bot))dead=true;
-    if(dead){b.alive=false;b.fit+=b.score*300;burst(b)}else alive++;
-  }
-  if(alive>0){
-    if(np.id>genPoints)genPoints=np.id;
-    if(genPoints>best){best=genPoints;if(best>=5&&best%5===0)say('New record: '+best+' pipes cleared in generation '+gen+'.')}
-  }else endGeneration();
-}
-
-function evolve(){
-  const rate=Math.max(.06,.3-best*.005),sd=Math.max(.15,.65-best*.01);
-  const next=[];
-  SPECS.forEach((spec,s)=>{
-    const arr=birds.filter(b=>b.sp===s).sort((a,b)=>b.fit-a.fit);
-    const top=arr.slice(0,Math.ceil(POP/2));
-    const pick=()=>{let bi=1e9;for(let k=0;k<3;k++)bi=Math.min(bi,(Math.random()*top.length)|0);return top[bi].brain};
-    const list=[Brain.clone(arr[0].brain),Brain.clone(arr[1].brain),new Brain(spec.h),new Brain(spec.h)];
-    while(list.length<POP){const a=pick();const b=Math.random()<.6?pick():null;list.push(Brain.child(a,b,rate,sd))}
-    next.push(list);
-  });
-  return {next,rate};
-}
-function endGeneration(){
-  const topScore=[0,0,0],topFit=[0,0,0];
-  for(const b of birds){topScore[b.sp]=Math.max(topScore[b.sp],b.score);topFit[b.sp]=Math.max(topFit[b.sp],b.fit)}
-  topScore.forEach((v,i)=>history[i].push(v));
-  const w=topFit.indexOf(Math.max(...topFit));wins[w]++;
-  const {next,rate}=evolve();
-  say('Generation '+gen+' finished. '+SPECS[w].name+' ('+SPECS[w].arch+') led with '+topScore[w]+' pipes. Mutation rate is now '+Math.round(rate*100)+'%.');
-  gen++;flash=1;mutRate=rate;spawn(next);drawChart();
-}
-function restart(){
-  gen=1;best=0;history=[[],[],[]];wins=[0,0,0];mutRate=.3;flash=1;particles=[];
-  spawn(newPop());drawChart();say('Restarted. Generation 1 is running with 120 random brains.');
-}
-function skipGen(){
-  for(const b of birds){if(b.alive){b.alive=false;b.fit+=b.score*300}}
-  endGeneration();
-}
-function pickViewers(){
-  for(let s=0;s<3;s++){
-    const v=viewer[s];
-    if(!v||!v.alive){
-      let bb=null;
-      for(const b of birds)if(b.sp===s&&b.alive&&(!bb||b.fit>bb.fit))bb=b;
-      viewer[s]=bb;
-    }
-  }
-}
-
-/* ---------- hand-drawn style art ---------- */
-function makeBird(k,wingUp){
-  const [c,x]=mk(64,64),P=BIRDS[k];
-  x.translate(28,33);x.lineJoin='round';x.lineCap='round';x.lineWidth=2.5;x.strokeStyle=INK;
-  // tail feathers
-  x.fillStyle=P.dark;
-  for(const a of [-.4,0,.4]){
-    x.save();x.translate(-11,3);x.rotate(Math.PI+a);
-    x.beginPath();x.moveTo(0,-3.6);x.lineTo(13,0);x.lineTo(0,3.6);x.closePath();x.fill();x.stroke();x.restore();
-  }
-  // head tuft
-  x.beginPath();x.moveTo(-7,-11);x.lineTo(-10,-21);x.lineTo(-3,-14.5);x.lineTo(0,-24);x.lineTo(3,-14);x.lineTo(9,-20);x.lineTo(8,-10);x.closePath();
-  x.fillStyle=P.dark;x.fill();x.stroke();
-  // body
-  x.fillStyle=P.body;x.beginPath();x.arc(0,0,14,0,7);x.fill();
-  x.save();x.beginPath();x.arc(0,0,14,0,7);x.clip();
-  x.fillStyle=P.belly;x.beginPath();x.ellipse(4,9,10,7,0,0,7);x.fill();x.restore();
-  x.beginPath();x.arc(0,0,14,0,7);x.stroke();
-  // wing
-  x.save();x.translate(-6,4);x.rotate(wingUp?.9:-.35);
-  x.fillStyle=P.dark;x.beginPath();x.ellipse(-4,0,9.5,5,0,0,7);x.fill();x.stroke();x.restore();
-  // eyes
-  x.fillStyle='#fff';
-  x.beginPath();x.arc(3,-2.5,4.4,0,7);x.fill();x.stroke();
-  x.beginPath();x.arc(11,-2.5,4.4,0,7);x.fill();x.stroke();
-  x.fillStyle=INK;
-  x.beginPath();x.arc(4.6,-1.8,1.9,0,7);x.fill();
-  x.beginPath();x.arc(12.4,-1.8,1.9,0,7);x.fill();
-  // angry brows
-  x.lineWidth=4.2;x.strokeStyle=INK;
-  x.beginPath();x.moveTo(-3,-10);x.lineTo(6.5,-6.2);x.stroke();
-  x.beginPath();x.moveTo(16.5,-9.5);x.lineTo(8,-6.2);x.stroke();
-  // beak
-  x.lineWidth=2.5;x.fillStyle='#ffb02e';
-  x.beginPath();x.moveTo(11,2);x.lineTo(24.5,6);x.lineTo(11,11);x.closePath();x.fill();x.stroke();
-  return c;
-}
-const birdSprites=BIRDS.map((_,k)=>[makeBird(k,false),makeBird(k,true)]);
-
-function cloud(x,cx,cy,s){
-  x.beginPath();
-  for(const [dx,dy,r] of [[0,0,15],[18,-9,19],[38,-3,16],[54,4,12],[-13,5,11]])x.arc(cx+dx*s,cy+dy*s,r*s,0,7);
-  x.fill();
-  rr(x,cx-22*s,cy+2*s,86*s,14*s,7*s);x.fill();
-}
-function makeSkyBg(){
-  const [c,x]=mk(W,H);
-  const g=x.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#4fb0ea');g.addColorStop(.6,'#a9def6');g.addColorStop(1,'#dff4fb');
-  x.fillStyle=g;x.fillRect(0,0,W,H);
-  x.fillStyle='rgba(255,246,190,.55)';x.beginPath();x.arc(92,118,44,0,7);x.fill();
-  x.fillStyle='#fff3a6';x.beginPath();x.arc(92,118,27,0,7);x.fill();
-  return c;
-}
-function makeClouds(seed,n,smin,smax,alpha){
-  const [c,x]=mk(W,H),r=mulberry(seed);
-  x.fillStyle='rgba(255,255,255,'+alpha+')';
-  for(let i=0;i<n;i++){
-    const cx=r()*W,cy=30+r()*330,s=smin+r()*(smax-smin);
-    for(const o of [-W,0,W])cloud(x,cx+o,cy,s);
-  }
-  return c;
-}
-function makeHills(color,base,amp,k1,k2,ph){
-  const [c,x]=mk(W,H);
-  x.fillStyle=color;x.beginPath();x.moveTo(0,H);
-  for(let px=0;px<=W;px+=4){
-    const y=base+amp*Math.sin(2*Math.PI*k1*px/W+ph)+amp*.5*Math.sin(2*Math.PI*k2*px/W+ph*2);
-    x.lineTo(px,y);
-  }
-  x.lineTo(W,H);x.closePath();x.fill();
-  return c;
-}
-const skyC=makeSkyBg(),cloudFar=makeClouds(5,7,.5,.8,.7),cloudNear=makeClouds(8,5,.9,1.4,.92);
-const hillFar=makeHills('#a6dcae',H-120,26,2,5,.6),hillNear=makeHills('#74c479',H-70,18,3,7,2.1);
-
-const game=$('game'),gctx=game.getContext('2d');
-game.width=W*2;game.height=H*2;
-
-function drawLayer(img,k){
-  const off=(dist*k)%W;
-  gctx.drawImage(img,-off,0,W,H);gctx.drawImage(img,W-off,0,W,H);
-}
-function drawPipe(p){
-  const c=gctx,top=p.gy-p.gap/2,bot=p.gy+p.gap/2;
-  const tower=(y0,y1,seedOff)=>{
-    if(y1<=y0)return;
-    c.fillStyle='#c9c3b3';c.fillRect(p.x,y0,PW,y1-y0);
-    c.fillStyle='#e3decf';c.fillRect(p.x,y0,6,y1-y0);
-    c.fillStyle='#a8a290';c.fillRect(p.x+PW-12,y0,12,y1-y0);
-    c.strokeStyle='rgba(20,26,58,.28)';c.lineWidth=1.5;
-    for(let y=y0+(40-((y0%40)+40)%40);y<y1;y+=40){c.beginPath();c.moveTo(p.x,y);c.lineTo(p.x+PW,y);c.stroke()}
-    for(let y=(seedOff>0?y0+40:y1-52);seedOff>0?y<y1-8:y>y0+4;y+=seedOff>0?26:-26){
-      for(let k=0;k<3;k++){
-        const lit=hash(p.id,y|0,k)>.86;
-        c.fillStyle=lit?'#ffd76a':'#2d4468';
-        c.fillRect(p.x+8+k*16,y,10,13);
-        c.fillStyle='rgba(255,255,255,.28)';c.fillRect(p.x+8+k*16,y,3,13);
-      }
-    }
-    c.strokeStyle=INK;c.lineWidth=3;c.strokeRect(p.x,y0,PW,y1-y0);
-  };
-  tower(-4,top-14,1);tower(bot+14,H,1);
-  // stone caps
-  for(const y of [top-16,bot]){
-    c.fillStyle='#545a72';c.fillRect(p.x-7,y,PW+14,16);
-    c.fillStyle='#7d84a0';c.fillRect(p.x-7,y,PW+14,4);
-    c.strokeStyle=INK;c.lineWidth=3;c.strokeRect(p.x-7,y,PW+14,16);
-  }
-}
-function drawGround(){
-  const c=gctx,y=H-GROUND;
-  c.fillStyle='#5cbb59';c.fillRect(0,y,W,GROUND);
-  c.fillStyle='#3f9448';c.fillRect(0,y+9,W,GROUND-9);
-  c.fillStyle='#7fd577';
-  const off=dist%22;
-  for(let x=-off;x<W;x+=22){c.beginPath();c.moveTo(x,y);c.lineTo(x+5,y-5);c.lineTo(x+10,y);c.fill()}
-  c.strokeStyle=INK;c.lineWidth=3;c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();
-}
-function drawBirds(){
-  const c=gctx;
-  for(const b of birds){
-    if(!b.alive)continue;
-    c.save();
-    c.translate(BX+b.jx,b.y);
-    c.rotate(Math.max(-.45,Math.min(.8,b.vy*.055)));
-    c.globalAlpha=viewer.includes(b)?1:.85;
-    c.drawImage(birdSprites[b.sp][b.vy<-1?1:0],-28,-33,64,64);
-    c.restore();
-  }
-  for(let s=0;s<3;s++){
-    const v=viewer[s];if(!v||!v.alive)continue;
-    const n=Math.min(22,v.age-1);
-    for(let k=2;k<n;k+=3){
-      const i1=(v.ti-1-k+48)%24;
-      c.globalAlpha=(1-k/24)*.85;c.fillStyle=SPECS[s].color;
-      c.beginPath();c.arc(BX+v.jx-k*3-8,v.tr[i1],3.2-k*.07,0,7);c.fill();
-      c.strokeStyle=INK;c.lineWidth=1.5;c.stroke();
-    }
-    c.globalAlpha=1;
-    c.beginPath();c.arc(BX+v.jx+2,v.y,R+11,0,7);
-    c.strokeStyle='#fff';c.lineWidth=5;c.stroke();
-    c.strokeStyle=SPECS[s].color;c.lineWidth=2.5;c.stroke();
-  }
-}
-function panel(x,y,w,h){
-  const c=gctx;
-  rr(c,x+3,y+4,w,h,13);c.fillStyle=INK;c.fill();
-  rr(c,x,y,w,h,13);c.fillStyle='#fff';c.fill();c.strokeStyle=INK;c.lineWidth=3;c.stroke();
-}
-function drawHud(){
-  const c=gctx;c.save();
-  panel(12,12,214,60);
-  c.fillStyle='#4a5288';c.font='500 11px '+F_UI;
-  c.fillText('Generation',26,32);c.fillText('Points',106,32);c.fillText('Best',164,32);
-  c.fillStyle=INK;c.font='400 28px '+F_DISP;
-  c.fillText(gen,26,62);c.fillText(genPoints,106,62);c.fillText(best,164,62);
-  panel(W-178,12,166,42);
-  c.font='400 17px '+F_DISP;
-  for(let s=0;s<3;s++){
-    let n=0;for(const b of birds)if(b.sp===s&&b.alive)n++;
-    const x=W-172+s*54;
-    c.drawImage(birdSprites[s][0],x-10,12+21-27,54,54);
-    c.fillStyle=INK;c.fillText(n,x+27,39);
-  }
-  c.font='500 12px '+F_UI;c.lineWidth=4;c.lineJoin='round';
-  c.strokeStyle=INK;c.strokeText('mutation rate '+Math.round(mutRate*100)+'%',16,94);
-  c.fillStyle='#fff';c.fillText('mutation rate '+Math.round(mutRate*100)+'%',16,94);
-  c.restore();
-}
-function render(){
-  const c=gctx;c.setTransform(2,0,0,2,0,0);
-  c.drawImage(skyC,0,0,W,H);
-  drawLayer(cloudFar,.12);drawLayer(hillFar,.3);drawLayer(cloudNear,.22);drawLayer(hillNear,.55);
-  for(const p of pipes)drawPipe(p);
-  drawGround();
-  drawBirds();
-  for(let i=particles.length-1;i>=0;i--){
-    const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.14;p.l-=.03;
-    if(p.l<=0){particles.splice(i,1);continue}
-    c.globalAlpha=Math.min(1,p.l*1.5);c.fillStyle=p.c;
-    c.beginPath();c.ellipse(p.x,p.y,4.5,2.2,p.r+p.l*4,0,7);c.fill();
-    c.strokeStyle=INK;c.lineWidth=1.3;c.stroke();
-  }
-  c.globalAlpha=1;
-  drawHud();
-  if(flash>0){
-    c.save();c.globalAlpha=Math.min(1,flash*1.6);c.textAlign='center';c.lineJoin='round';
-    c.font='400 44px '+F_DISP;c.lineWidth=9;c.strokeStyle=INK;c.strokeText('Generation '+gen,W/2,H*.3);
-    c.fillStyle='#fff';c.fillText('Generation '+gen,W/2,H*.3);
-    c.restore();flash-=.022;
-  }
-}
-
-/* ---------- network viewers ---------- */
-const NW=420,NH=220,inX=120,hX=236,oX=334;
-const netCtx=[];
-SPECS.forEach((sp,i)=>{
-  const d=document.createElement('div');d.className='card';
-  d.innerHTML='<div class="chead"><canvas class="face" width="72" height="72"></canvas><b>'+sp.name+', '+sp.arch+'</b><span class="wins" id="w'+i+'">wins 0</span></div>'+
-    '<div class="csub" id="s'+i+'"></div><canvas class="net" id="n'+i+'"></canvas>'+
-    '<div class="cfoot">4 inputs, '+sp.h+' tanh neurons, 1 sigmoid output. '+(6*sp.h+1)+' weights in total.</div>';
-  $('nets').insertBefore(d,$('nets').lastElementChild);
-  const fc=d.querySelector('.face').getContext('2d');fc.drawImage(birdSprites[i][0],0,0,72,72);
-  const cv=d.querySelector('.net');cv.width=NW*2;cv.height=NH*2;
-  netCtx.push(cv.getContext('2d'));
-});
-$('nets').appendChild($('nets').querySelector('.chartcard'));
-// logo
-$('logo').getContext('2d').drawImage(birdSprites[0][1],0,0,148,148);
-
-function drawNet(i,t){
-  const c=netCtx[i],spec=SPECS[i],h=spec.h,v=viewer[i];
-  c.setTransform(2,0,0,2,0,0);c.clearRect(0,0,NW,NH);
-  if(!v||!v.alive){
-    c.fillStyle='#98a0d4';c.font='500 13px '+F_UI;c.textAlign='center';
-    c.fillText('All of these birds are dead.',NW/2,NH/2-4);
-    c.fillText('Waiting for the next generation.',NW/2,NH/2+14);
-    c.textAlign='left';return;
-  }
-  const b=v.brain,p=b.p;
-  const cy=NH/2+8,span=Math.min(NH-56,(h-1)*26);
-  const iy=k=>cy-60+k*40,hy=j=>cy-span/2+j*span/(h-1);
-  const phase=(t/1100)%1;
-  c.lineCap='round';
-  // column captions
-  c.font='500 10.5px '+F_UI;c.textAlign='center';c.fillStyle='#7f88c4';
-  c.fillText('inputs',inX,14);c.fillText('hidden (tanh)',hX,14);c.fillText('output (sigmoid)',oX,14);
-  const edge=(x1,y1,x2,y2,w,mut,src,idx)=>{
-    const base=Math.min(1,Math.abs(w)/1.8),s=Math.min(1,Math.abs(src));
-    let a=(.12+.6*base)*(.3+.7*s);if(mut)a=Math.max(a,.85);
-    const col=mut?'255,210,63':(w>0?'95,211,141':'255,107,107');
-    c.strokeStyle='rgba('+col+','+a.toFixed(3)+')';c.lineWidth=.5+base*2.2;
-    c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
-    if(Math.abs(w*src)>.55){
-      const f=(phase+idx*.137)%1;
-      c.fillStyle='rgba('+col+',1)';c.beginPath();c.arc(x1+(x2-x1)*f,y1+(y2-y1)*f,1.9,0,7);c.fill();
-    }
-  };
-  for(let j=0;j<h;j++)for(let k=0;k<4;k++)edge(inX,iy(k),hX,hy(j),p[j*4+k],b.m[j*4+k],b.a0[k],j*4+k);
-  for(let j=0;j<h;j++)edge(hX,hy(j),oX,cy,p[5*h+j],b.m[5*h+j],b.a1[j],j+3);
-  // inputs
-  for(let k=0;k<4;k++){
-    const y=iy(k),val=b.a0[k];
-    c.fillStyle='rgba(214,218,255,'+(.3+.7*val).toFixed(2)+')';c.beginPath();c.arc(inX,y,6,0,7);c.fill();
-    c.textAlign='right';c.fillStyle='#98a0d4';c.font='400 11px '+F_UI;c.fillText(INPUT_NAMES[k],inX-46,y+4);
-    c.fillStyle='#f4f5ff';c.font='600 11px '+F_MONO;c.fillText(val.toFixed(2),inX-14,y+4);
-  }
-  // hidden
-  const hr=h>8?3.6:(h>4?5:6.5);
-  for(let j=0;j<h;j++){
-    const a=b.a1[j],y=hy(j);
-    c.fillStyle=a>0?spec.color+Math.round(70+185*a).toString(16).padStart(2,'0'):'rgba(150,120,230,'+(.25+.75*-a).toFixed(2)+')';
-    c.beginPath();c.arc(hX,y,hr,0,7);c.fill();
-    const bi=p[4*h+j],mu=b.m[4*h+j];
-    c.strokeStyle=mu?'#ffd23f':(bi>0?'#5fd38d':'#ff6b6b');c.lineWidth=(mu?2:1)+Math.min(1.2,Math.abs(bi)*.6);
-    c.beginPath();c.arc(hX,y,hr+1.6,0,7);c.stroke();
-  }
-  // output
-  const flap=b.out>.5;
-  c.fillStyle=flap?'#5fd38d':'#9aa3d6';c.beginPath();c.arc(oX,cy,10,0,7);c.fill();
-  const ob=p[6*h],om=b.m[6*h];
-  c.strokeStyle=om?'#ffd23f':(ob>0?'#5fd38d':'#ff6b6b');c.lineWidth=om?2.5:1.5;
-  c.beginPath();c.arc(oX,cy,12.5,0,7);c.stroke();
-  c.textAlign='left';c.fillStyle=flap?'#8ee8b1':'#c8ceef';c.font='600 12px '+F_MONO;
-  c.fillText((flap?'flap ':'wait ')+b.out.toFixed(2),oX+19,cy+1);
-  // decision gauge
-  rr(c,oX+19,cy+9,52,6,3);c.fillStyle='rgba(255,255,255,.16)';c.fill();
-  rr(c,oX+19,cy+9,Math.max(4,52*b.out),6,3);c.fillStyle=flap?'#5fd38d':'#9aa3d6';c.fill();
-  c.fillStyle='#fff';c.fillRect(oX+19+25.5,cy+6,1.5,12);
-}
-function updateCards(){
-  for(let s=0;s<3;s++){
-    let alive=0;for(const b of birds)if(b.sp===s&&b.alive)alive++;
-    const v=viewer[s];
-    if(alive&&v){
-      let mu=0;for(let i=0;i<v.brain.n;i++)mu+=v.brain.m[i];
-      $('s'+s).textContent='Showing 1 of '+alive+' alive, fitness '+Math.round(v.fit)+'. '+mu+' of '+v.brain.n+' weights changed by mutation.';
-    }else $('s'+s).textContent='Every bird with this brain has crashed.';
-    $('w'+s).textContent='wins '+wins[s];
-  }
-}
-
-/* ---------- chart ---------- */
-const chart=$('chart'),cctx=chart.getContext('2d'),CW=420,CH=180;
-chart.width=CW*2;chart.height=CH*2;
-function drawChart(){
-  const c=cctx;c.setTransform(2,0,0,2,0,0);c.clearRect(0,0,CW,CH);
-  const n=history[0].length;
-  c.font='500 11px '+F_UI;
-  if(!n){c.fillStyle='#98a0d4';c.textAlign='center';c.fillText('Lines appear when generation 1 ends.',CW/2,CH/2);c.textAlign='left';return}
-  const view=Math.min(n,40),start=n-view;
-  let mx=5;for(let s=0;s<3;s++)for(let i=start;i<n;i++)mx=Math.max(mx,history[s][i]);
-  mx=Math.ceil(mx*1.15);
-  const l=32,r=12,t=10,b=22,w=CW-l-r,h=CH-t-b;
-  c.strokeStyle='rgba(255,255,255,.12)';c.fillStyle='#98a0d4';c.lineWidth=1;c.textAlign='right';
-  for(let g=0;g<=4;g++){
-    const y=t+h*(1-g/4);c.beginPath();c.moveTo(l,y);c.lineTo(l+w,y);c.stroke();
-    c.fillText(Math.round(mx*g/4),l-6,y+4);
-  }
-  c.textAlign='left';c.fillText('Gen '+(start+1),l,CH-6);
-  c.textAlign='right';c.fillText('Gen '+n,l+w,CH-6);
-  const X=i=>view>1?l+(i/(view-1))*w:l+w/2,Y=v=>t+h*(1-v/mx);
-  SPECS.forEach((sp,s)=>{
-    c.strokeStyle=sp.color;c.lineWidth=2.5;c.lineJoin='round';
-    c.beginPath();
-    for(let i=0;i<view;i++){const x=X(i),y=Y(history[s][start+i]);i?c.lineTo(x,y):c.moveTo(x,y)}
-    c.stroke();
-    c.fillStyle=sp.color;c.strokeStyle='#0f1538';c.lineWidth=2;
-    c.beginPath();c.arc(X(view-1),Y(history[s][n-1]),4.2,0,7);c.fill();c.stroke();
-  });
-}
-
-/* ---------- controls ---------- */
-function setPaused(v){paused=v;$('pause').textContent=v?'Resume':'Pause'}
-function setSpeed(i){spIdx=Math.max(0,Math.min(5,i));$('speed').value=spIdx;$('speedLbl').textContent=SPEEDS[spIdx]+'x'}
-function setCine(v){document.body.classList.toggle('cine',v)}
-$('pause').onclick=()=>setPaused(!paused);
-$('speed').oninput=e=>setSpeed(+e.target.value);
-$('hard').onchange=e=>{hard=e.target.checked;say(hard?'Difficulty ramp is on. Gaps shrink and pipes speed up as birds score.':'Difficulty ramp is off.')};
-$('skip').onclick=skipGen;
-$('reset').onclick=restart;
-$('cine').onclick=()=>setCine(true);
-$('exitCine').onclick=()=>setCine(false);
-addEventListener('keydown',e=>{
-  if(e.target&&e.target.tagName==='INPUT'&&e.target.type==='text')return;
-  if(e.code==='Space'){e.preventDefault();setPaused(!paused)}
-  else if(e.key==='n'||e.key==='N')skipGen();
-  else if(e.key==='r'||e.key==='R')restart();
-  else if(e.key==='c'||e.key==='C')setCine(!document.body.classList.contains('cine'));
-  else if(e.key==='ArrowUp'){e.preventDefault();setSpeed(spIdx+1)}
-  else if(e.key==='ArrowDown'){e.preventDefault();setSpeed(spIdx-1)}
-});
-
-/* ---------- main loop ---------- */
-function loop(t){
-  if(!paused){const n=SPEEDS[spIdx];for(let i=0;i<n;i++)step()}
-  pickViewers();
-  render();
-  for(let i=0;i<3;i++)drawNet(i,t);
-  if(++uiTick%6===0)updateCards();
-  requestAnimationFrame(loop);
-}
-setSpeed(2);
-spawn(newPop());
-drawChart();
-updateCards();
-requestAnimationFrame(loop);
-// redraw static art once web fonts arrive
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{drawChart()});
-})();
-</script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
