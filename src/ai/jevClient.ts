@@ -416,20 +416,21 @@ Respond strictly in valid JSON:
     let p2 = 0.03;
 
     if (!state.is_grounded) {
-      p0 = 0.94;
-      p1 = 0.05;
+      p0 = 0.95;
+      p1 = 0.04;
       p2 = 0.01;
-    } else if (state.obstacle_dist <= 55 && state.obstacle_dist > 0) {
-      p2 = 0.91;
-      p1 = 0.07;
-      p0 = 0.02;
-    } else if (state.obstacle_dist <= 115 && state.obstacle_dist > 55) {
-      p1 = 0.72;
-      p2 = 0.20;
-      p0 = 0.08;
+    } else if (state.obstacle_dist <= 105 && state.obstacle_dist >= 35) {
+      // Prime jump timing: jump to clear the pipe cleanly or stomp the Goomba!
+      p2 = 0.94;
+      p1 = 0.05;
+      p0 = 0.01;
+    } else if (state.obstacle_dist <= 175 && state.obstacle_dist > 105) {
+      p1 = 0.76;
+      p2 = 0.18;
+      p0 = 0.06;
     } else {
-      p0 = 0.86;
-      p1 = 0.11;
+      p0 = 0.88;
+      p1 = 0.09;
       p2 = 0.03;
     }
 
