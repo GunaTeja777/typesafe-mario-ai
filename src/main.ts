@@ -14,6 +14,7 @@ function initApp() {
 
   const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement;
   const humanBtn = document.getElementById('humanBtn') as HTMLButtonElement;
+  const shootBtn = document.getElementById('shootBtn') as HTMLButtonElement;
   const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement;
   const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement;
 
@@ -30,6 +31,10 @@ function initApp() {
     sounds.playClick();
   };
 
+  shootBtn.onclick = () => {
+    sim.shoot();
+  };
+
   soundBtn.onclick = () => {
     const enabled = !sounds.isEnabled();
     sounds.setEnabled(enabled);
@@ -43,16 +48,23 @@ function initApp() {
   };
 
   // Canvas click & Space key triggers jump in manual mode or testing
-  gameCanvas.addEventListener('pointerdown', () => {
-    sim.jump();
+  gameCanvas.addEventListener('pointerdown', (e: MouseEvent) => {
+    if (e.button === 2) {
+      sim.shoot();
+    } else {
+      sim.jump();
+    }
   });
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
 
-    if (e.code === 'Space') {
+    if (e.code === 'Space' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
       e.preventDefault();
       sim.jump();
+    } else if (e.key === 'x' || e.key === 'X' || e.key === 'f' || e.key === 'F' || e.key === 'Control') {
+      e.preventDefault();
+      sim.shoot();
     } else if (e.key === 'p' || e.key === 'P') {
       sim.paused = !sim.paused;
       pauseBtn.textContent = sim.paused ? '▶ Resume' : '⏸ Pause';

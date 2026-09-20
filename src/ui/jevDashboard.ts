@@ -72,27 +72,27 @@ export class JevDashboard {
           <!-- Probability Distribution Bars -->
           <div class="probability-bars-container">
             <div class="prob-row" id="probRow0">
-              <span class="prob-label">0 - Not at all</span>
+              <span class="prob-label">0 - Run</span>
               <div class="prob-bar-track">
-                <div class="prob-bar-fill" id="barFill0" style="width: 79%;"></div>
+                <div class="prob-bar-fill" id="barFill0" style="width: 88%; background: #3b82f6;"></div>
               </div>
-              <span class="prob-val" id="probVal0">0.79</span>
+              <span class="prob-val" id="probVal0">0.88</span>
             </div>
 
             <div class="prob-row" id="probRow1">
-              <span class="prob-label">1 - Soon</span>
+              <span class="prob-label">1 - Jump (Hit ? Box)</span>
               <div class="prob-bar-track">
-                <div class="prob-bar-fill" id="barFill1" style="width: 19%;"></div>
+                <div class="prob-bar-fill" id="barFill1" style="width: 8%; background: #22c55e;"></div>
               </div>
-              <span class="prob-val" id="probVal1">0.19</span>
+              <span class="prob-val" id="probVal1">0.08</span>
             </div>
 
             <div class="prob-row" id="probRow2">
-              <span class="prob-label">2 - Right now</span>
+              <span class="prob-label">2 - Shoot (Fireball)</span>
               <div class="prob-bar-track">
-                <div class="prob-bar-fill" id="barFill2" style="width: 2%;"></div>
+                <div class="prob-bar-fill" id="barFill2" style="width: 4%; background: #f97316;"></div>
               </div>
-              <span class="prob-val" id="probVal2">0.02</span>
+              <span class="prob-val" id="probVal2">0.04</span>
             </div>
           </div>
 
@@ -101,7 +101,7 @@ export class JevDashboard {
           </div>
 
           <div class="panel-footer-note">
-            <b>probabilities</b> is how likely each level is. <b>score</b> is where the answer lands between levels 0 and 2, the bird jumps at 1 or more.
+            <b>probabilities</b> is how likely each action is. <b>0 = Run</b> safely, <b>1 = Jump</b> to hit ? boxes, grab coins & leap obstacles, <b>2 = Shoot</b> bouncing fireballs at enemies.
           </div>
         </div>
       </div>
@@ -195,18 +195,20 @@ export class JevDashboard {
       scoreEl.textContent = t.lastScore.toFixed(2);
       confEl.textContent = t.lastConfidence.toFixed(2);
 
-      const willJump = t.lastScore >= 1.0;
-      if (willJump) {
-        actionEl.innerHTML = `<span style="color:#4ade80;font-weight:700;">1 or over so Mario jumps JUMP</span>`;
+      if (t.lastDecision === 'SHOOT') {
+        actionEl.innerHTML = `<span style="color:#ff6600;font-weight:700;">action SHOOT 🔥 (${t.lastDecisionReason || 'Fireball at enemy'})</span>`;
+        banner.style.borderColor = '#ff6600';
+      } else if (t.lastDecision === 'JUMP') {
+        actionEl.innerHTML = `<span style="color:#4ade80;font-weight:700;">action JUMP 🦘 (${t.lastDecisionReason || 'Hit ? Box / Leap'})</span>`;
         banner.style.borderColor = '#4ade80';
       } else {
-        actionEl.innerHTML = `<span style="color:#94a3b8;">under 1 so Mario waits WAIT</span>`;
+        actionEl.innerHTML = `<span style="color:#94a3b8;">action RUN 🏃 (${t.lastDecisionReason || 'Cruise safe'})</span>`;
         banner.style.borderColor = 'rgba(255, 255, 255, 0.15)';
       }
     }
 
     // Probability Bars
-    const probs = t.lastResponse?.answers?.urgency?.probabilities || { '0': 0.79, '1': 0.19, '2': 0.02 };
+    const probs = t.lastResponse?.answers?.urgency?.probabilities || { '0': 0.85, '1': 0.10, '2': 0.05 };
 
     const fill0 = $('barFill0');
     const val0 = $('probVal0');
@@ -223,7 +225,7 @@ export class JevDashboard {
     if (fill1 && val1 && row1) {
       fill1.style.width = `${Math.round(probs['1'] * 100)}%`;
       val1.textContent = probs['1'].toFixed(2);
-      row1.style.backgroundColor = probs['1'] >= Math.max(probs['0'], probs['2']) ? '#273259' : '#18203f';
+      row1.style.backgroundColor = probs['1'] >= Math.max(probs['0'], probs['2']) ? '#1b4332' : '#18203f';
     }
 
     const fill2 = $('barFill2');
@@ -232,7 +234,7 @@ export class JevDashboard {
     if (fill2 && val2 && row2) {
       fill2.style.width = `${Math.round(probs['2'] * 100)}%`;
       val2.textContent = probs['2'].toFixed(2);
-      row2.style.backgroundColor = probs['2'] >= Math.max(probs['0'], probs['1']) ? '#273259' : '#18203f';
+      row2.style.backgroundColor = probs['2'] >= Math.max(probs['0'], probs['1']) ? '#4a1e1b' : '#18203f';
     }
 
     // JSON Request
