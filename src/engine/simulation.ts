@@ -74,7 +74,6 @@ export class Simulation {
 
   private nextSpawnX: number = 420;
   private objId: number = 0;
-  private lastShootTick: number = 0;
 
   constructor() {
     this.restart();

@@ -333,6 +333,8 @@ export class CanvasRenderer {
       } else if (ob.type === 'koopa_shell') {
         c.drawImage(koopaShellSprite, ob.x, ob.y, ob.w, ob.h);
       }
+    }
+
     this.drawGround(sim.dist);
 
     // Render Fireballs
