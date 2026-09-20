@@ -414,6 +414,137 @@ export function makeCoinFrame(frame: number): HTMLCanvasElement {
   return c;
 }
 
+export function makeSuperMushroom(): HTMLCanvasElement {
+  const [c, x] = mk(32, 32);
+  x.translate(16, 16);
+  x.lineJoin = 'round';
+  x.lineCap = 'round';
+
+  // Red Cap
+  x.fillStyle = '#e52521';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+  x.beginPath();
+  x.arc(0, -2, 13, Math.PI, Math.PI * 2);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // White Spots
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.arc(0, -9, 4.5, 0, Math.PI * 2);
+  x.arc(-9, -4, 3, 0, Math.PI * 2);
+  x.arc(9, -4, 3, 0, Math.PI * 2);
+  x.fill();
+
+  // Stem (Peach)
+  x.fillStyle = '#fcd0a1';
+  x.beginPath();
+  x.roundRect(-7, -2, 14, 11, 3);
+  x.fill();
+  x.stroke();
+
+  // Eyes
+  x.fillStyle = INK;
+  x.fillRect(-4, 1, 2, 4);
+  x.fillRect(2, 1, 2, 4);
+
+  return c;
+}
+
+export function makeBrickBlock(): HTMLCanvasElement {
+  const [c, x] = mk(36, 36);
+  x.translate(18, 18);
+
+  x.fillStyle = '#b85c18';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+  x.fillRect(-14, -14, 28, 28);
+  x.strokeRect(-14, -14, 28, 28);
+
+  // Brick lines
+  x.fillStyle = '#d8782a';
+  x.fillRect(-12, -12, 11, 10);
+  x.fillRect(1, -12, 11, 10);
+  x.fillRect(-12, 2, 24, 10);
+
+  x.strokeStyle = '#6b3e15';
+  x.lineWidth = 1.5;
+  x.beginPath();
+  x.moveTo(-14, 0); x.lineTo(14, 0);
+  x.moveTo(0, -14); x.lineTo(0, 0);
+  x.stroke();
+
+  return c;
+}
+
+export function makeKoopa(frame: number): HTMLCanvasElement {
+  const [c, x] = mk(36, 36);
+  x.translate(18, 20);
+
+  // Green Shell Body
+  x.fillStyle = '#00a800';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+  x.beginPath();
+  x.ellipse(0, 2, 11, 12, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Yellow Belly Rim
+  x.fillStyle = '#fcd0a1';
+  x.beginPath();
+  x.ellipse(-2, 2, 6, 8, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Head
+  x.fillStyle = '#fcd0a1';
+  x.beginPath();
+  x.arc(6, -8, 6, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Eye
+  x.fillStyle = INK;
+  x.beginPath();
+  x.arc(8, -9, 1.5, 0, Math.PI * 2);
+  x.fill();
+
+  // Feet
+  x.fillStyle = '#f8931f';
+  const f = frame === 0 ? 2 : -2;
+  x.beginPath();
+  x.ellipse(-7, 12 + f, 4, 3, 0, 0, Math.PI * 2);
+  x.ellipse(7, 12 - f, 4, 3, 0, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  return c;
+}
+
+export function makeKoopaShell(): HTMLCanvasElement {
+  const [c, x] = mk(32, 32);
+  x.translate(16, 16);
+
+  x.fillStyle = '#00a800';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+  x.beginPath();
+  x.arc(0, 0, 11, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.arc(0, 0, 5, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  return c;
+}
+
 export const marioRunSprites = [
   makeMarioRunFrame(0),
   makeMarioRunFrame(1),
@@ -422,7 +553,11 @@ export const marioRunSprites = [
 export const marioJumpSprite = makeMarioJump();
 export const marioDeadSprite = makeMarioDead();
 export const goombaSprites = [makeGoomba(0), makeGoomba(1)];
+export const koopaSprites = [makeKoopa(0), makeKoopa(1)];
+export const koopaShellSprite = makeKoopaShell();
 export const questionBlockSprite = makeQuestionBlock();
+export const brickBlockSprite = makeBrickBlock();
+export const mushroomSprite = makeSuperMushroom();
 export const coinSprites = [
   makeCoinFrame(0),
   makeCoinFrame(1),

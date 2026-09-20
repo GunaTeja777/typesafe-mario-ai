@@ -62,13 +62,13 @@ export interface JevTelemetry {
 export class JevClient {
   private apiKey: string = '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';
   private provider: 'Groq' | 'OpenRouter' = 'Groq';
-  private model: string = 'llama-3.1-8b-instant';
+  private model: string = 'qwen/qwen3.8-27b';
   private endpoint: string = 'https://api.groq.com/openai/v1/chat/completions';
   private callCount: number = 0;
   private totalCost: number = 0;
   private inFlight: boolean = false;
   private lastCallTime: number = 0;
-  public queryIntervalMs: number = 120; // 0.1s - 0.12s query interval
+  public queryIntervalMs: number = 100; // asked every 0.1s of game time
 
   public telemetry: JevTelemetry;
   public onTelemetryUpdate?: (t: JevTelemetry) => void;
@@ -138,7 +138,7 @@ export class JevClient {
     if (this.apiKey.startsWith('gsk_')) {
       this.provider = 'Groq';
       this.endpoint = 'https://api.groq.com/openai/v1/chat/completions';
-      this.model = 'llama-3.1-8b-instant';
+      this.model = 'qwen/qwen3.8-27b';
     } else {
       this.provider = 'OpenRouter';
       this.endpoint = 'https://openrouter.ai/api/alpha/decisions';
