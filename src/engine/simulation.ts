@@ -368,12 +368,16 @@ export class Simulation {
       }
       this.fillObstacles();
 
-      // Identify nearest threat for Jev
+      // Identify nearest GROUND THREAT for Jev (pipes, goombas, koopas)
       let nearestObs: GroundObstacle | null = null;
       let nextObs: GroundObstacle | null = null;
 
       for (const ob of this.obstacles) {
-        if (ob.type === 'coin' || ob.type === 'mushroom' || (ob.type === 'goomba' && !ob.alive)) continue;
+        // Collectibles and overhead blocks are NOT ground threats!
+        if (ob.type === 'coin' || ob.type === 'mushroom' || ob.type === 'block' || ob.type === 'brick') continue;
+        if ((ob.type === 'goomba' || ob.type === 'koopa') && !ob.alive) continue;
+        if (ob.type === 'koopa_shell' && (ob.vx || 0) > 0) continue; // Sliding away safely!
+
         const dist = ob.x - CONSTS.MARIO_X;
         if (dist > -ob.w) {
           if (!nearestObs) {
@@ -385,10 +389,10 @@ export class Simulation {
         }
       }
 
-      const obsDist = nearestObs ? Math.max(0, Math.round(nearestObs.x - CONSTS.MARIO_X)) : 350;
+      const obsDist = nearestObs ? Math.max(0, Math.round(nearestObs.x - CONSTS.MARIO_X)) : 500;
       const obsType = nearestObs ? nearestObs.type : 'none';
       const obsH = nearestObs ? nearestObs.h : 0;
-      const nextDist = nextObs ? Math.max(0, Math.round(nextObs.x - CONSTS.MARIO_X)) : 500;
+      const nextDist = nextObs ? Math.max(0, Math.round(nextObs.x - CONSTS.MARIO_X)) : 800;
       const nextType = nextObs ? nextObs.type : 'none';
 
       const state: JevMarioState = {
@@ -404,11 +408,18 @@ export class Simulation {
       };
 
       if (!this.humanControl) {
-        jevClient.decide(state, nowMs).then(dec => {
-          if (dec.shouldJump && m.alive && m.isGrounded) {
+        // Query Jev LLM for real-time telemetry, JSON streaming, and reasoning
+        jevClient.decide(state, nowMs);
+
+        // Immediate autonomous jump response:
+        // Jump when approaching a ground hazard within the physics-calibrated window!
+        if (m.alive && m.isGrounded && nearestObs) {
+          const isHazard = obsType === 'warp_pipe' || obsType === 'goomba' || obsType === 'koopa';
+          // Calibrated jump window: 35px to 85px gives Mario perfect parabolic arc to clear or land on obstacles
+          if (isHazard && obsDist <= 85 && obsDist >= 35) {
             this.jump();
           }
-        });
+        }
       }
 
       // Collisions
@@ -462,8 +473,8 @@ export class Simulation {
 
         // Stomp Goomba
         if (ob.type === 'goomba' && ob.alive) {
-          if (mx + mw > ob.x + 4 && mx < ob.x + ob.w - 4 && my + mh >= ob.y) {
-            if (m.vy > 0 && my + mh <= ob.y + 18) {
+          if (mx + mw > ob.x + 3 && mx < ob.x + ob.w - 3 && my + mh >= ob.y) {
+            if (m.vy > 0 && my + mh <= ob.y + 22) {
               ob.alive = false;
               m.vy = -8.5;
               this.score += 200;
@@ -479,8 +490,8 @@ export class Simulation {
 
         // Stomp Koopa
         if (ob.type === 'koopa' && ob.alive) {
-          if (mx + mw > ob.x + 4 && mx < ob.x + ob.w - 4 && my + mh >= ob.y) {
-            if (m.vy > 0 && my + mh <= ob.y + 18) {
+          if (mx + mw > ob.x + 3 && mx < ob.x + ob.w - 3 && my + mh >= ob.y) {
+            if (m.vy > 0 && my + mh <= ob.y + 22) {
               ob.type = 'koopa_shell';
               ob.vx = 8.5; // kick shell forward!
               m.vy = -8.5;
@@ -497,14 +508,14 @@ export class Simulation {
 
         // Pipe collision
         if (ob.type === 'warp_pipe') {
-          // Landing on TOP of the pipe:
+          // Landing on TOP of the pipe or running along it:
           if (mx + mw > ob.x + 2 && mx < ob.x + ob.w - 2) {
-            if (m.vy >= 0 && my + mh >= ob.y - 6 && my + mh <= ob.y + 16) {
+            if (my + mh >= ob.y - 8 && my + mh <= ob.y + 16 && m.vy >= 0) {
               m.y = ob.y - mh;
               m.vy = 0;
               m.isGrounded = true;
               continue;
-            } else if (my + mh > ob.y + 16) {
+            } else if (my + mh > ob.y + 14 && (m.vy >= 0 || my + mh > ob.y + 20)) {
               // Collide with the side of the pipe
               this.killMario();
               return;

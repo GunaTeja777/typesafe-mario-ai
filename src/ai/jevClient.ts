@@ -69,7 +69,7 @@ export class JevClient {
   private inFlight: boolean = false;
   private lastCallTime: number = 0;
   private groqCooldownUntil: number = 0;
-  public queryIntervalMs: number = 350; // Throttle to prevent Groq 429 rate limits
+  public queryIntervalMs: number = 500; // Throttle to maintain Groq free-tier quota smoothly
 
   public telemetry: JevTelemetry;
   public onTelemetryUpdate?: (t: JevTelemetry) => void;
@@ -90,7 +90,7 @@ export class JevClient {
       obstacle_height: 32,
       next_obstacle: 'warp_pipe',
       next_dist: 320,
-      run_speed: 3.5
+      run_speed: 3.8
     };
 
     const initialReq = this.createRequestPayload(initialState);
@@ -101,9 +101,9 @@ export class JevClient {
           type: 'score',
           score: 0.23,
           legend: {
-            '0': 'Not at all: Mario is running safely, obstacle is far away...',
-            '1': 'Soon: Obstacle is within 60-120px, prepare jump...',
-            '2': 'Right now: Obstacle is directly ahead (<55px), jump immediately!'
+            '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
+            '1': 'Soon: Obstacle is within 85-180px, prepare jump...',
+            '2': 'Right now: Obstacle is directly ahead (35-85px), jump immediately!'
           },
           probabilities: {
             '0': 0.79,
@@ -180,22 +180,25 @@ export class JevClient {
     return {
       model: this.model,
       provider: this.provider,
-      state,
+      state: { ...state },
       questions: {
         urgency: {
           type: 'score',
-          instructions: 'How urgently does Mario need to jump to clear the incoming obstacle or stomp the enemy?',
+          instructions: 'Score jump urgency from 0 (safely running, obstacle far away) to 2 (jump immediately to avoid death or stomp enemy)',
           criteria: [
-            'Not at all: Mario is running safely, the obstacle is far ahead (>120px) or Mario is airborne.',
-            'Soon: The obstacle is approaching within 60-120px, prepare jump.',
-            'Right now: The obstacle is directly in front (<55px), JUMP immediately to clear it!'
+            'Level 0 (Not at all): Obstacle > 180px away or Mario is currently airborne in a jump arc',
+            'Level 1 (Soon): Obstacle is within 85px to 180px, approach phase',
+            'Level 2 (Right now): Obstacle is within 35px to 85px and Mario is grounded, jump immediately!'
           ]
         }
       }
     };
   }
 
-  public async decide(state: JevMarioState, now: number): Promise<{ shouldJump: boolean; score: number }> {
+  public async decide(
+    state: JevMarioState,
+    now: number
+  ): Promise<{ shouldJump: boolean; score: number }> {
     if (now - this.lastCallTime < this.queryIntervalMs) {
       return {
         shouldJump: this.telemetry.lastScore >= 1.0,
@@ -241,7 +244,7 @@ obstacle_type: "${state.obstacle_type}", obstacle_dist: ${state.obstacle_dist}px
 next_obstacle: "${state.next_obstacle}", next_dist: ${state.next_dist}px, run_speed: ${state.run_speed}
 
 Determine jump urgency (0=Not at all, 1=Soon, 2=Right now).
-Rule: If Mario is airborne (!is_grounded), urgency is 0. If obstacle_dist is between 40px and 110px and grounded, urgency is 2 (JUMP NOW to clear obstacle or stomp enemy). If obstacle_dist is between 110px and 180px, urgency is 1. Else 0.
+Rule: If Mario is airborne (!is_grounded), urgency is 0. If obstacle_dist is between 35px and 85px and grounded, urgency is 2 (JUMP NOW to clear obstacle or stomp enemy). If obstacle_dist is between 85px and 180px, urgency is 1. Else 0.
 
 Respond strictly in valid JSON:
 {
@@ -289,7 +292,7 @@ Respond strictly in valid JSON:
           // fallback
         }
 
-        const score = parsed?.urgency?.score ?? (state.obstacle_dist <= 55 && state.is_grounded ? 1.8 : 0.2);
+        const score = parsed?.urgency?.score ?? (state.obstacle_dist <= 85 && state.obstacle_dist >= 35 && state.is_grounded ? 1.85 : 0.15);
         const confidence = parsed?.urgency?.confidence ?? 0.88;
         const probs = parsed?.urgency?.probabilities ?? {
           '0': score < 0.6 ? 0.82 : 0.05,
@@ -306,8 +309,8 @@ Respond strictly in valid JSON:
               score,
               legend: {
                 '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
-                '1': 'Soon: Obstacle is within 60-120px, prepare jump...',
-                '2': 'Right now: Obstacle is directly ahead (<55px), jump immediately!'
+                '1': 'Soon: Obstacle is within 85-180px, prepare jump...',
+                '2': 'Right now: Obstacle is directly ahead (35-85px), jump immediately!'
               },
               probabilities: {
                 '0': +probs['0'].toFixed(2),
@@ -341,8 +344,8 @@ Respond strictly in valid JSON:
       } else {
         this.inFlight = false;
         if (resp.status === 429) {
-          // Cooldown for 3.5 seconds on rate limit
-          this.groqCooldownUntil = now + 3500;
+          // Cooldown for 4.0 seconds on rate limit
+          this.groqCooldownUntil = now + 4000;
         }
         return this.simulateJevDecision(state, payload, resp.status);
       }
@@ -419,12 +422,12 @@ Respond strictly in valid JSON:
       p0 = 0.95;
       p1 = 0.04;
       p2 = 0.01;
-    } else if (state.obstacle_dist <= 105 && state.obstacle_dist >= 35) {
+    } else if (state.obstacle_dist <= 85 && state.obstacle_dist >= 35) {
       // Prime jump timing: jump to clear the pipe cleanly or stomp the Goomba!
       p2 = 0.94;
       p1 = 0.05;
       p0 = 0.01;
-    } else if (state.obstacle_dist <= 175 && state.obstacle_dist > 105) {
+    } else if (state.obstacle_dist <= 180 && state.obstacle_dist > 85) {
       p1 = 0.76;
       p2 = 0.18;
       p0 = 0.06;
@@ -455,9 +458,9 @@ Respond strictly in valid JSON:
           type: 'score',
           score,
           legend: {
-            '0': 'Not at all: Mario is running safely, obstacle is far away...',
-            '1': 'Soon: Obstacle is within 60-120px, prepare jump...',
-            '2': 'Right now: Obstacle is directly ahead (<55px), jump immediately!'
+            '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
+            '1': 'Soon: Obstacle is within 85-180px, prepare jump...',
+            '2': 'Right now: Obstacle is directly ahead (35-85px), jump immediately!'
           },
           probabilities: {
             '0': p0,
