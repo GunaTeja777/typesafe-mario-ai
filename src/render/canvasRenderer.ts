@@ -2,6 +2,7 @@ import { CONSTS, Simulation } from '../engine/simulation';
 import {
   marioRunSprites,
   marioJumpSprite,
+  marioFallSprite,
   marioDeadSprite,
   goombaSprites,
   koopaSprites,
@@ -149,52 +150,80 @@ export class CanvasRenderer {
 
   private drawPipe(x: number, y: number, w: number, h: number) {
     const c = this.ctx;
-    const capH = 26;
-    const overhang = 6;
+    const capH = 20;
+    const overhang = 4;
     const capX = x - overhang;
     const capW = w + overhang * 2;
 
-    // --- 1. Pipe Body ---
-    c.fillStyle = '#00a800'; // Classic Mario Green
+    // Classic NES/SNES Super Mario Pipe Color Palette
+    const C_BASE = '#00a800';      // Vibrant classic Nintendo green
+    const C_LIME = '#84e400';      // Smooth lime highlight
+    const C_GLINT = '#e2fa60';     // Specular glint stripe
+    const C_SHADOW = '#006200';    // Deep shaded forest green
+    const C_DARK = '#003600';      // Deepest right edge shadow
+
+    // 1. Pipe Body Base
+    c.fillStyle = C_BASE;
     c.fillRect(x, y + capH, w, h - capH);
 
-    // Left Highlight Stripe
-    c.fillStyle = '#80e000';
-    c.fillRect(x + 5, y + capH, 9, h - capH);
+    // Body Highlight Vertical Bands (Aligned with Cap)
+    c.fillStyle = C_LIME;
+    c.fillRect(x + 3, y + capH, 9, h - capH);
+    c.fillStyle = C_GLINT;
+    c.fillRect(x + 6, y + capH, 4, h - capH);
 
-    // Right Shadow Stripe
-    c.fillStyle = '#005800';
-    c.fillRect(x + w - 14, y + capH, 14, h - capH);
+    // Body Shadow Vertical Bands (Aligned with Cap)
+    c.fillStyle = C_SHADOW;
+    c.fillRect(x + w - 15, y + capH, 9, h - capH);
+    c.fillStyle = C_DARK;
+    c.fillRect(x + w - 6, y + capH, 6, h - capH);
 
-    // Body Outline
+    // Under-cap Drop Shadow cast onto pipe body
+    c.fillStyle = 'rgba(0, 30, 0, 0.45)';
+    c.fillRect(x, y + capH, w, 5);
+
+    // Body Left and Right Outlines
     c.strokeStyle = '#000000';
-    c.lineWidth = 3;
-    c.strokeRect(x, y + capH, w, h - capH);
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(x, y + capH);
+    c.lineTo(x, y + h);
+    c.moveTo(x + w, y + capH);
+    c.lineTo(x + w, y + h);
+    c.stroke();
 
-    // --- 2. Pipe Cap (Rim) ---
-    c.fillStyle = '#00a800';
+    // 2. Pipe Cap (Rim)
+    c.fillStyle = C_BASE;
     c.fillRect(capX, y, capW, capH);
 
-    // Cap Left Highlight
-    c.fillStyle = '#80e000';
-    c.fillRect(capX + 6, y, 10, capH);
+    // Left Overhang Highlight Wing
+    c.fillStyle = C_LIME;
+    c.fillRect(capX, y, overhang + 3, capH);
 
-    // Top Rim Highlight
-    c.fillStyle = '#9cfc00';
-    c.fillRect(capX + 2, y + 2, capW - 4, 3);
+    // Cap Highlights (Exact same X positions as body for seamless vertical continuity!)
+    c.fillStyle = C_LIME;
+    c.fillRect(x + 3, y, 9, capH);
+    c.fillStyle = C_GLINT;
+    c.fillRect(x + 6, y, 4, capH);
 
-    // Cap Right Shadow
-    c.fillStyle = '#005800';
-    c.fillRect(capX + capW - 16, y, 16, capH);
+    // Cap Shadows (Exact same X positions as body!)
+    c.fillStyle = C_SHADOW;
+    c.fillRect(x + w - 15, y, 9, capH);
+    c.fillStyle = C_DARK;
+    c.fillRect(x + w - 6, y, 6 + overhang, capH);
 
-    // Cap Outline
+    // Flat Top Bevel Highlight (horizontal stripe along top edge - no hollow hole!)
+    c.fillStyle = C_GLINT;
+    c.fillRect(capX + 2, y + 1.5, capW - 4, 2);
+
+    // Bottom Lip Bevel Shadow
+    c.fillStyle = C_DARK;
+    c.fillRect(capX + 1, y + capH - 2, capW - 2, 2);
+
+    // Clean Outer Cap Outline
     c.strokeStyle = '#000000';
-    c.lineWidth = 3;
+    c.lineWidth = 2.5;
     c.strokeRect(capX, y, capW, capH);
-
-    // Under-cap drop shadow
-    c.fillStyle = 'rgba(0, 0, 0, 0.35)';
-    c.fillRect(x + 1, y + capH, w - 2, 4);
   }
 
   private drawGround(dist: number) {
@@ -325,7 +354,7 @@ export class CanvasRenderer {
     if (!m.alive) {
       c.drawImage(marioDeadSprite, -6, -4, 48, 48);
     } else if (!m.isGrounded) {
-      c.drawImage(marioJumpSprite, -6, -4, 48, 48);
+      c.drawImage(m.vy < 0 ? marioJumpSprite : marioFallSprite, -6, -4, 48, 48);
     } else {
       c.drawImage(marioRunSprites[m.runFrame], -6, -4, 48, 48);
     }

@@ -117,9 +117,10 @@ export class Simulation {
     const r = Math.random();
     const id = this.objId++;
 
-    if (r < 0.32) {
-      // Warp Pipe
-      const pipeH = 50 + Math.floor(Math.random() * 32);
+    if (r < 0.35) {
+      // Classic Warp Pipe (short: 48, medium: 66, tall: 82)
+      const heights = [48, 66, 82];
+      const pipeH = heights[Math.floor(Math.random() * heights.length)];
       this.obstacles.push({
         id,
         type: 'warp_pipe',
@@ -128,17 +129,17 @@ export class Simulation {
         w: 56,
         h: pipeH
       });
-      // Floating question block after pipe
+      // Floating question block or coin 130px after pipe
       this.obstacles.push({
         id: this.objId++,
         type: 'block',
-        x: x + 110,
+        x: x + 130,
         y: CONSTS.GROUND_Y - 125,
         w: 32,
         h: 32,
         hit: false
       });
-    } else if (r < 0.60) {
+    } else if (r < 0.65) {
       // Walking Goomba
       this.obstacles.push({
         id,
@@ -159,7 +160,7 @@ export class Simulation {
         h: 22,
         collected: false
       });
-    } else if (r < 0.80) {
+    } else if (r < 0.82) {
       // Koopa Troopa (Turtle)
       this.obstacles.push({
         id,
@@ -171,7 +172,7 @@ export class Simulation {
         alive: true
       });
     } else {
-      // Breakable Brick Block & Coin Block
+      // Breakable Brick Block & Question Block
       this.obstacles.push({
         id,
         type: 'brick',
@@ -205,7 +206,7 @@ export class Simulation {
   public fillObstacles() {
     while (this.nextSpawnX < CONSTS.W + 500) {
       this.spawnObstacle(this.nextSpawnX);
-      this.nextSpawnX += 210 + Math.floor(Math.random() * 140);
+      this.nextSpawnX += 260 + Math.floor(Math.random() * 150);
     }
   }
 
