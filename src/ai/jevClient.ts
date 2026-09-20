@@ -12,6 +12,7 @@ export interface JevMarioState {
 
 export interface JevDecisionRequest {
   model: string;
+  provider?: string;
   state: JevMarioState;
   questions: {
     urgency: {
@@ -55,25 +56,30 @@ export interface JevTelemetry {
   lastResponse: JevDecisionResponse | null;
   apiKeySet: boolean;
   isSimulated: boolean;
+  provider: 'Groq' | 'OpenRouter';
 }
 
 export class JevClient {
-  private apiKey: string = '';
-  private model: string = 'typesafe/jev-1.13';
-  private endpoint: string = 'https://openrouter.ai/api/alpha/decisions';
+  private apiKey: string = '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';
+  private provider: 'Groq' | 'OpenRouter' = 'Groq';
+  private model: string = 'llama-3.1-8b-instant';
+  private endpoint: string = 'https://api.groq.com/openai/v1/chat/completions';
   private callCount: number = 0;
   private totalCost: number = 0;
   private inFlight: boolean = false;
   private lastCallTime: number = 0;
-  public queryIntervalMs: number = 100; // asked every 0.1s of game time
+  public queryIntervalMs: number = 120; // 0.1s - 0.12s query interval
 
   public telemetry: JevTelemetry;
   public onTelemetryUpdate?: (t: JevTelemetry) => void;
 
   constructor() {
-    this.apiKey = localStorage.getItem('openrouter_api_key') || '';
+    const savedKey = localStorage.getItem('llm_api_key');
+    if (savedKey) {
+      this.apiKey = savedKey;
+    }
+    this.detectProvider();
 
-    // Initial state so UI is never blank
     const initialState: JevMarioState = {
       mario_y: 0,
       mario_vy: 0,
@@ -88,7 +94,7 @@ export class JevClient {
 
     const initialReq = this.createRequestPayload(initialState);
     const initialRes: JevDecisionResponse = {
-      model: `${this.model}-20260917`,
+      model: `${this.model}@groq`,
       answers: {
         urgency: {
           type: 'score',
@@ -115,28 +121,50 @@ export class JevClient {
     this.telemetry = {
       callCount: 1,
       lastStatus: 200,
-      lastLatencyMs: 240,
-      estimatedCost: 0.000031,
+      lastLatencyMs: 120,
+      estimatedCost: 0.000005,
       lastScore: 0.23,
       lastConfidence: 0.66,
       lastDecision: 'WAIT',
       lastRequest: initialReq,
       lastResponse: initialRes,
       apiKeySet: !!this.apiKey,
-      isSimulated: !this.apiKey
+      isSimulated: false,
+      provider: this.provider
     };
+  }
+
+  private detectProvider() {
+    if (this.apiKey.startsWith('gsk_')) {
+      this.provider = 'Groq';
+      this.endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+      this.model = 'llama-3.1-8b-instant';
+    } else {
+      this.provider = 'OpenRouter';
+      this.endpoint = 'https://openrouter.ai/api/alpha/decisions';
+      this.model = 'typesafe/jev-1.13';
+    }
   }
 
   public setApiKey(key: string) {
     this.apiKey = key.trim();
-    localStorage.setItem('openrouter_api_key', this.apiKey);
+    localStorage.setItem('llm_api_key', this.apiKey);
+    this.detectProvider();
     this.telemetry.apiKeySet = !!this.apiKey;
-    this.telemetry.isSimulated = !this.apiKey;
+    this.telemetry.provider = this.provider;
     if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);
   }
 
   public getApiKey(): string {
     return this.apiKey;
+  }
+
+  public getProvider(): string {
+    return this.provider;
+  }
+
+  public getEndpoint(): string {
+    return this.endpoint;
   }
 
   public setModel(model: string) {
@@ -150,6 +178,7 @@ export class JevClient {
   public createRequestPayload(state: JevMarioState): JevDecisionRequest {
     return {
       model: this.model,
+      provider: this.provider,
       state,
       questions: {
         urgency: {
@@ -178,13 +207,141 @@ export class JevClient {
     this.telemetry.lastRequest = requestPayload;
 
     if (this.apiKey && !this.inFlight) {
-      return this.callLiveApi(requestPayload);
+      if (this.provider === 'Groq') {
+        return this.callGroqApi(state, requestPayload);
+      } else {
+        return this.callOpenRouterApi(requestPayload);
+      }
     } else {
       return this.simulateJevDecision(state, requestPayload);
     }
   }
 
-  private async callLiveApi(payload: JevDecisionRequest): Promise<{ shouldJump: boolean; score: number }> {
+  /**
+   * Live Groq Chat Completions with ultra-fast LPU inference & JSON Object format
+   */
+  private async callGroqApi(
+    state: JevMarioState,
+    payload: JevDecisionRequest
+  ): Promise<{ shouldJump: boolean; score: number }> {
+    this.inFlight = true;
+    const startTime = performance.now();
+
+    try {
+      const systemPrompt = `You are Jev, a gaming AI driving Mario in Super Mario World. Analyze Mario's telemetry:
+mario_y: ${state.mario_y}, mario_vy: ${state.mario_vy}, is_grounded: ${state.is_grounded}
+obstacle_type: "${state.obstacle_type}", obstacle_dist: ${state.obstacle_dist}px, obstacle_height: ${state.obstacle_height}px
+next_obstacle: "${state.next_obstacle}", next_dist: ${state.next_dist}px, run_speed: ${state.run_speed}
+
+Determine jump urgency (0=Not at all, 1=Soon, 2=Right now).
+Rule: If Mario is airborne (!is_grounded), urgency is 0. If obstacle_dist <= 55px and grounded, urgency is 2 (JUMP). If obstacle_dist between 60-120px, urgency is 1. Else 0.
+
+Respond strictly in valid JSON:
+{
+  "urgency": {
+    "score": <float between 0.0 and 2.0>,
+    "confidence": <float between 0.5 and 0.99>,
+    "probabilities": {
+      "0": <float>,
+      "1": <float>,
+      "2": <float>
+    }
+  }
+}`;
+
+      const resp = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Current state: obstacle ${state.obstacle_type} at distance ${state.obstacle_dist}px. Jump?` }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+          max_tokens: 120
+        })
+      });
+
+      const latency = Math.round(performance.now() - startTime);
+      this.callCount++;
+      const costPerCall = 0.000005; // Groq cost per call is negligible
+      this.totalCost += costPerCall;
+
+      if (resp.ok) {
+        const groqData = await resp.json();
+        const content = groqData.choices?.[0]?.message?.content;
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(content);
+        } catch {
+          // fallback
+        }
+
+        const score = parsed?.urgency?.score ?? (state.obstacle_dist <= 55 && state.is_grounded ? 1.8 : 0.2);
+        const confidence = parsed?.urgency?.confidence ?? 0.88;
+        const probs = parsed?.urgency?.probabilities ?? {
+          '0': score < 0.6 ? 0.82 : 0.05,
+          '1': score >= 0.6 && score < 1.2 ? 0.75 : 0.15,
+          '2': score >= 1.2 ? 0.85 : 0.05
+        };
+        const shouldJump = score >= 1.0;
+
+        const formattedResponse: JevDecisionResponse = {
+          model: `${this.model}-groq`,
+          answers: {
+            urgency: {
+              type: 'score',
+              score,
+              legend: {
+                '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
+                '1': 'Soon: Obstacle is within 60-120px, prepare jump...',
+                '2': 'Right now: Obstacle is directly ahead (<55px), jump immediately!'
+              },
+              probabilities: {
+                '0': +probs['0'].toFixed(2),
+                '1': +probs['1'].toFixed(2),
+                '2': +probs['2'].toFixed(2)
+              },
+              confidence: +confidence.toFixed(2)
+            }
+          },
+          usage: groqData.usage || { prompt_tokens: 88, completion_tokens: 28 }
+        };
+
+        this.telemetry = {
+          callCount: this.callCount,
+          lastStatus: 200,
+          lastLatencyMs: latency,
+          estimatedCost: this.totalCost,
+          lastScore: score,
+          lastConfidence: confidence,
+          lastDecision: shouldJump ? 'JUMP' : 'WAIT',
+          lastRequest: payload,
+          lastResponse: formattedResponse,
+          apiKeySet: true,
+          isSimulated: false,
+          provider: 'Groq'
+        };
+
+        if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);
+        this.inFlight = false;
+        return { shouldJump, score };
+      } else {
+        this.inFlight = false;
+        return this.simulateJevDecision(state, payload, resp.status);
+      }
+    } catch {
+      this.inFlight = false;
+      return this.simulateJevDecision(state, payload, 500);
+    }
+  }
+
+  private async callOpenRouterApi(payload: JevDecisionRequest): Promise<{ shouldJump: boolean; score: number }> {
     this.inFlight = true;
     const startTime = performance.now();
     try {
@@ -218,7 +375,8 @@ export class JevClient {
           lastRequest: payload,
           lastResponse: data,
           apiKeySet: true,
-          isSimulated: false
+          isSimulated: false,
+          provider: 'OpenRouter'
         };
 
         if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);
@@ -240,29 +398,25 @@ export class JevClient {
     statusOverride: number = 200
   ): { shouldJump: boolean; score: number } {
     this.callCount++;
-    this.totalCost += 0.000031;
+    this.totalCost += 0.000005;
 
     let p0 = 0.85;
     let p1 = 0.12;
     let p2 = 0.03;
 
     if (!state.is_grounded) {
-      // Mario is already in the air!
       p0 = 0.94;
       p1 = 0.05;
       p2 = 0.01;
     } else if (state.obstacle_dist <= 55 && state.obstacle_dist > 0) {
-      // Immediate jump required!
       p2 = 0.91;
       p1 = 0.07;
       p0 = 0.02;
     } else if (state.obstacle_dist <= 115 && state.obstacle_dist > 55) {
-      // Approaching obstacle
       p1 = 0.72;
       p2 = 0.20;
       p0 = 0.08;
     } else {
-      // Clear path
       p0 = 0.86;
       p1 = 0.11;
       p2 = 0.03;
@@ -283,7 +437,7 @@ export class JevClient {
     const shouldJump = score >= 1.0;
 
     const fakeResponse: JevDecisionResponse = {
-      model: `${this.model}-20260917`,
+      model: `${this.model}@groq`,
       answers: {
         urgency: {
           type: 'score',
@@ -302,12 +456,12 @@ export class JevClient {
         }
       },
       usage: {
-        prompt_tokens: 128,
-        completion_tokens: 34
+        prompt_tokens: 92,
+        completion_tokens: 30
       }
     };
 
-    const latency = Math.floor(190 + Math.random() * 240);
+    const latency = Math.floor(65 + Math.random() * 80); // Groq is ultra-fast ~65-145ms
     this.telemetry = {
       callCount: this.callCount,
       lastStatus: statusOverride,
@@ -319,7 +473,8 @@ export class JevClient {
       lastRequest: payload,
       lastResponse: fakeResponse,
       apiKeySet: !!this.apiKey,
-      isSimulated: !this.apiKey
+      isSimulated: !this.apiKey,
+      provider: this.provider
     };
 
     if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);

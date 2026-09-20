@@ -44,7 +44,7 @@ body {
 
 /* Left Game Area */
 .game-viewport {
-  flex: 0 0 460px;
+  flex: 0 0 580px;
   position: relative;
   background: #000000;
   display: flex;

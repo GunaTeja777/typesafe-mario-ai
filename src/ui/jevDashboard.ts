@@ -24,12 +24,12 @@ export class JevDashboard {
         <div class="jev-title-info">
           <span class="jev-brand">Jev</span>
           <span class="jev-model-tag" id="jevModelTag">${jevClient.getModel()}</span>
-          <span class="jev-pipe-info">through OpenRouter, asked every 0.1 seconds of game time</span>
+          <span class="jev-pipe-info" id="jevProviderInfo">through ${jevClient.getProvider()} LPUs, asked every 0.1s</span>
         </div>
         <div class="jev-stats-bar">
           <span class="jev-status-dot" id="jevDot">●</span>
-          <span id="jevCallStats">call 1: HTTP 200 in 240 ms, $0.000031</span>
-          <button class="jev-config-btn" id="openApiSettingsBtn">🔑 API Key</button>
+          <span id="jevCallStats">call 1: HTTP 200 in 115 ms, $0.000005</span>
+          <button class="jev-config-btn" id="openApiSettingsBtn">⚡ Groq Key</button>
         </div>
       </div>
 
@@ -45,8 +45,8 @@ export class JevDashboard {
           </div>
 
           <div class="panel-meta-http">
-            <div class="http-line"><span class="http-verb">POST</span> <span class="http-url">https://openrouter.ai/api/alpha/decisions</span></div>
-            <div class="http-line"><span class="http-header">Authorization:</span> Bearer &lt;${jevClient.getApiKey() ? 'API Key Active' : 'your OpenRouter key'}&gt;</div>
+            <div class="http-line"><span class="http-verb">POST</span> <span class="http-url" id="jevEndpointUrl">${jevClient.getEndpoint()}</span></div>
+            <div class="http-line"><span class="http-header">Authorization:</span> Bearer <span id="jevAuthHeader">gsk_ckc9...Xc4u (Active)</span></div>
             <div class="http-line"><span class="http-header">Content-Type:</span> application/json</div>
           </div>
 

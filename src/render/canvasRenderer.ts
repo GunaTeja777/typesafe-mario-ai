@@ -74,32 +74,41 @@ export class CanvasRenderer {
       x.translate(cx, cy);
       x.scale(scale, scale);
 
+      // Solid white cloud body
       x.fillStyle = '#ffffff';
+      x.beginPath();
+      x.arc(-22, 0, 16, 0, Math.PI * 2);
+      x.arc(0, -9, 21, 0, Math.PI * 2);
+      x.arc(22, 0, 16, 0, Math.PI * 2);
+      x.rect(-22, -2, 44, 18);
+      x.fill();
+
+      // Outer outline
       x.strokeStyle = INK;
       x.lineWidth = 2.5;
-
+      x.lineJoin = 'round';
       x.beginPath();
-      x.arc(-22, 0, 15, 0, Math.PI * 2);
-      x.arc(0, -9, 20, 0, Math.PI * 2);
-      x.arc(22, 0, 15, 0, Math.PI * 2);
-      x.rect(-22, 0, 44, 15);
-      x.fill();
+      x.arc(-22, 0, 16, Math.PI * 0.7, Math.PI * 1.6, false);
+      x.arc(0, -9, 21, Math.PI * 1.15, Math.PI * 1.85, false);
+      x.arc(22, 0, 16, Math.PI * 1.4, Math.PI * 2.3, false);
+      x.lineTo(-22, 16);
+      x.closePath();
       x.stroke();
 
       // Cloud eyes
       x.fillStyle = INK;
       x.beginPath();
-      x.ellipse(-6, -3, 2, 4, 0, 0, Math.PI * 2);
-      x.ellipse(6, -3, 2, 4, 0, 0, Math.PI * 2);
+      x.ellipse(-7, 2, 2, 4.5, 0, 0, Math.PI * 2);
+      x.ellipse(7, 2, 2, 4.5, 0, 0, Math.PI * 2);
       x.fill();
 
       x.restore();
     };
 
-    for (let i = 0; i < 6; i++) {
-      const cx = rand() * CONSTS.W;
-      const cy = 40 + rand() * 260;
-      const scale = 0.8 + rand() * 0.4;
+    for (let i = 0; i < 4; i++) {
+      const cx = 80 + i * 140 + rand() * 40;
+      const cy = 60 + rand() * 160;
+      const scale = 0.85 + rand() * 0.25;
       for (const offset of [-CONSTS.W, 0, CONSTS.W]) {
         drawMarioCloud(cx + offset, cy, scale);
       }
@@ -247,10 +256,10 @@ export class CanvasRenderer {
       c.fillText(txt, x, y);
     };
 
-    drawPill(scoreStr, 18, 16);
-    drawPill(coinStr, 140, 16);
-    drawPill(worldStr, 260, 16);
-    drawPill(genStr, 360, 16);
+    drawPill(scoreStr, 28, 16);
+    drawPill(coinStr, 170, 16);
+    drawPill(worldStr, 310, 16);
+    drawPill(genStr, 440, 16);
 
     c.restore();
   }

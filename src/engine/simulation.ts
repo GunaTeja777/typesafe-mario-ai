@@ -15,10 +15,10 @@ export interface GroundObstacle {
 }
 
 export const CONSTS = {
-  W: 480,
+  W: 580,
   H: 640,
   GROUND_Y: 560, // Ground starts at y = 560 (80px tall)
-  MARIO_X: 85,
+  MARIO_X: 95,
   MARIO_H: 36,
   GRAV: 0.65,
   JUMP_IMPULSE: -12.5,
