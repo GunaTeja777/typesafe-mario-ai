@@ -7,7 +7,8 @@ export interface JevMarioState {
   hazard_height: number;   // Height of hazard in px
   item_box: 'question_block' | 'brick' | 'coin' | 'none';
   item_box_dist: number;   // Horizontal distance to overhead item box / coin
-  can_shoot: boolean;      // Can Mario shoot fireballs
+  can_shoot: boolean;      // Can Mario shoot fireballs (fire_ammo > 0)
+  fire_ammo: number;       // Countable shooting bullets available
   run_speed: number;       // Speed
 }
 
@@ -100,8 +101,9 @@ export class JevClient {
       hazard_dist: 145,
       hazard_height: 30,
       item_box: 'question_block',
-      item_box_dist: 70,
-      can_shoot: true,
+      item_box_dist: 28,
+      can_shoot: false,
+      fire_ammo: 0,
       run_speed: 3.8
     };
 
@@ -213,13 +215,14 @@ export class JevClient {
     state: JevMarioState,
     now: number
   ): Promise<JevDecisionResult> {
-    if (now - this.lastCallTime < this.queryIntervalMs) {
+    // Only query LLM when not in flight and throttled to preserve Groq quota
+    if (now - this.lastCallTime < 280 || this.inFlight) {
       return {
-        action: this.telemetry.lastDecision,
-        shouldJump: this.telemetry.lastDecision === 'JUMP',
-        shouldShoot: this.telemetry.lastDecision === 'SHOOT',
+        action: 'RUN',
+        shouldJump: false,
+        shouldShoot: false,
         score: this.telemetry.lastScore,
-        reason: this.telemetry.lastDecisionReason
+        reason: this.inFlight ? 'LLM thinking...' : 'Cruising safely'
       };
     }
     this.lastCallTime = now;
@@ -256,31 +259,26 @@ export class JevClient {
 
     try {
       const systemPrompt = `You are Jev, the AI mind controlling Mario in Super Mario World. Analyze Mario's live telemetry:
-- Mario: y=${state.mario_y}px, vy=${state.mario_vy}, grounded=${state.is_grounded}
+- Mario: grounded=${state.is_grounded}, y=${state.mario_y}
 - Ground Hazard: ${state.ground_hazard} at distance ${state.hazard_dist}px (height: ${state.hazard_height}px)
 - Overhead Item Box: ${state.item_box} at distance ${state.item_box_dist}px
-- Can Shoot Fireballs: ${state.can_shoot}
+- Fire Ammo: ${state.fire_ammo} bullets (can_shoot: ${state.can_shoot})
 - Run Speed: ${state.run_speed}px/frame
 
-Determine Mario's action (Level 0, 1, or 2):
-- Level 0 (RUN): Running safely forward, no immediate obstacles or overhead item boxes.
-- Level 1 (JUMP): Jump immediately! Use this when:
-  * An overhead ? block or coin is directly above (item_box_dist between 40px and 85px) to hit and collect coins!
-  * Ground hazard (warp_pipe, goomba, koopa) is directly ahead (hazard_dist between 35px and 85px) to clear or stomp!
-- Level 2 (SHOOT): Shoot a fireball! Use this when an oncoming enemy (goomba or koopa) is in front (hazard_dist between 60px and 220px).
+Rules:
+1. If overhead ? box is close (item_box_dist between 18px and 55px) and Mario is grounded: action="JUMP" to hit with head for +5 bullets!
+2. If ground hazard is approaching (hazard_dist between 35px and 90px) and Mario is grounded: action="JUMP" to leap over!
+3. If enemy is ahead (hazard_dist between 60px and 220px) and fire_ammo > 0: action="SHOOT" to fire fireball!
+4. Otherwise: action="RUN".
 
-Respond strictly in valid JSON:
+Respond ONLY in valid JSON:
 {
   "action": "RUN" | "JUMP" | "SHOOT",
-  "reason": "<short explanation>",
+  "reason": "<short 4-word reason>",
   "urgency": {
-    "score": <float between 0.0 and 2.0>,
-    "confidence": <float between 0.5 and 0.99>,
-    "probabilities": {
-      "0": <float for RUN>,
-      "1": <float for JUMP>,
-      "2": <float for SHOOT>
-    }
+    "score": <0.0 to 2.0>,
+    "confidence": <0.5 to 0.99>,
+    "probabilities": {"0": <float>, "1": <float>, "2": <float>}
   }
 }`;
 
@@ -294,11 +292,11 @@ Respond strictly in valid JSON:
           model: this.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Current Mario state: hazard=${state.ground_hazard} (${state.hazard_dist}px), box=${state.item_box} (${state.item_box_dist}px). Decide Action!` }
+            { role: 'user', content: `hazard=${state.ground_hazard} (${state.hazard_dist}px), box=${state.item_box} (${state.item_box_dist}px), fire_ammo=${state.fire_ammo}. Action?` }
           ],
           response_format: { type: 'json_object' },
-          temperature: 0.1,
-          max_tokens: 120
+          temperature: 0,
+          max_tokens: 65
         })
       });
 
@@ -322,15 +320,15 @@ Respond strictly in valid JSON:
 
         // Deterministic check if model omitted fields
         if (!action) {
-          if (state.item_box !== 'none' && state.item_box_dist <= 85 && state.item_box_dist >= 40 && state.is_grounded) {
+          if (state.item_box !== 'none' && state.item_box_dist <= 35 && state.item_box_dist >= 14 && state.is_grounded) {
             action = 'JUMP';
-            reason = 'Hit ? Box for Coins & Power-ups';
+            reason = 'Hit ? Box with head for +5 Fire Bullets & Coin!';
           } else if (state.hazard_dist <= 85 && state.hazard_dist >= 35 && state.is_grounded) {
             action = 'JUMP';
             reason = `Leap over ${state.ground_hazard}`;
-          } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 220 && state.hazard_dist > 85) {
+          } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 240 && state.hazard_dist > 80 && state.can_shoot) {
             action = 'SHOOT';
-            reason = `Blast ${state.ground_hazard} with fireball`;
+            reason = `Blast ${state.ground_hazard} with fire bullet`;
           } else {
             action = 'RUN';
             reason = 'Safe cruise along ground';
@@ -473,23 +471,23 @@ Respond strictly in valid JSON:
       p0 = 0.94;
       p1 = 0.04;
       p2 = 0.02;
-    } else if (state.item_box !== 'none' && state.item_box_dist <= 85 && state.item_box_dist >= 40) {
+    } else if (state.item_box !== 'none' && state.item_box_dist <= 35 && state.item_box_dist >= 14) {
       action = 'JUMP';
-      reason = `Hit ${state.item_box === 'question_block' ? '? Block' : state.item_box} for coins!`;
-      p1 = 0.92;
-      p0 = 0.05;
-      p2 = 0.03;
+      reason = `Hit ${state.item_box === 'question_block' ? '? Block' : state.item_box} with head for +5 bullets & coin!`;
+      p1 = 0.94;
+      p0 = 0.04;
+      p2 = 0.02;
     } else if (state.hazard_dist <= 85 && state.hazard_dist >= 35) {
       action = 'JUMP';
       reason = `Leap over ${state.ground_hazard}`;
       p1 = 0.95;
       p0 = 0.03;
       p2 = 0.02;
-    } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 220 && state.hazard_dist > 85) {
+    } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 240 && state.hazard_dist > 80 && state.can_shoot) {
       action = 'SHOOT';
-      reason = `Fire fireball at ${state.ground_hazard}`;
-      p2 = 0.91;
-      p1 = 0.06;
+      reason = `Fire fireball at ${state.ground_hazard} (${state.fire_ammo} bullets remaining)`;
+      p2 = 0.92;
+      p1 = 0.05;
       p0 = 0.03;
     } else {
       action = 'RUN';

@@ -34,15 +34,23 @@ export interface Fireball {
   alive: boolean;
 }
 
+export interface PoppingCoin {
+  x: number;
+  y: number;
+  vy: number;
+  frame: number;
+  alive: boolean;
+}
+
 export const CONSTS = {
   W: 760, // Widescreen Mario Viewport
   H: 640,
   GROUND_Y: 550, // Ground starts at y = 550 (90px tall)
   MARIO_X: 110,
   MARIO_H: 38,
-  GRAV: 0.65,
-  JUMP_IMPULSE: -12.5,
-  RUN_SPEED: 3.8
+  GRAV: 0.52,
+  JUMP_IMPULSE: -11.5,
+  RUN_SPEED: 2.2 // Reduced frame speed so Groq LLM has ample time to decide!
 };
 
 export class Simulation {
@@ -50,11 +58,12 @@ export class Simulation {
   public score: number = 0;
   public bestScore: number = 0;
   public coins: number = 0;
-  public fireAmmo: number = 10;
+  public fireAmmo: number = 0; // Starts at 0, awarded by hitting ? boxes with head!
   public dist: number = 0;
   public paused: boolean = false;
   public humanControl: boolean = false;
   public flash: number = 0;
+  public poppingCoins: PoppingCoin[] = [];
 
   // Mario State
   public mario = {
@@ -93,15 +102,27 @@ export class Simulation {
     };
     this.score = 0;
     this.coins = 0;
-    this.fireAmmo = 10;
+    this.fireAmmo = 0; // Starts at 0, awarded by hitting ? boxes with head!
     this.dist = 0;
     this.obstacles = [];
     this.particles = [];
     this.floatingScores = [];
     this.fireballs = [];
-    this.nextSpawnX = 420;
+    this.poppingCoins = [];
     this.objId = 0;
 
+    // Introductory ? question box overhead so player/AI can immediately hit it with head!
+    this.obstacles.push({
+      id: this.objId++,
+      type: 'block',
+      x: 230,
+      y: CONSTS.GROUND_Y - 120,
+      w: 32,
+      h: 32,
+      hit: false
+    });
+
+    this.nextSpawnX = 390;
     this.fillObstacles();
   }
 
@@ -117,9 +138,11 @@ export class Simulation {
   public shoot() {
     if (!this.mario.alive) return;
     if (this.fireAmmo <= 0) {
-      this.addScorePopup('NO FIRE!', CONSTS.MARIO_X + 20, this.mario.y - 12, '#94a3b8');
+      this.addScorePopup('NO BULLETS! HIT ? BOX WITH HEAD!', CONSTS.MARIO_X + 10, this.mario.y - 16, '#f59e0b');
+      sounds.playClick();
       return;
     }
+    // Countable shooting: decrement ammo by 1
     this.fireAmmo--;
     this.fireballs.push({
       id: this.objId++,
@@ -131,7 +154,7 @@ export class Simulation {
       alive: true
     });
     sounds.playFireball();
-    this.addScorePopup('FIREBALL!', CONSTS.MARIO_X + 20, this.mario.y - 12, '#ff6600');
+    this.addScorePopup('🔥 SHOOT!', CONSTS.MARIO_X + 20, this.mario.y - 12, '#ff6600');
   }
 
   public addScorePopup(text: string, x: number, y: number, color: string = '#ffffff') {
@@ -161,18 +184,27 @@ export class Simulation {
         w: 56,
         h: pipeH
       });
-      // Floating question block or coin 130px after pipe
+      // Floating ? question block 120px after pipe
       this.obstacles.push({
         id: this.objId++,
         type: 'block',
-        x: x + 130,
-        y: CONSTS.GROUND_Y - 125,
+        x: x + 120,
+        y: CONSTS.GROUND_Y - 120,
         w: 32,
         h: 32,
         hit: false
       });
     } else if (r < 0.65) {
-      // Walking Goomba
+      // Walking Goomba with ? question box overhead so Mario can hit it & shoot the Goomba!
+      this.obstacles.push({
+        id: this.objId++,
+        type: 'block',
+        x: x - 50,
+        y: CONSTS.GROUND_Y - 120,
+        w: 32,
+        h: 32,
+        hit: false
+      });
       this.obstacles.push({
         id,
         type: 'goomba',
@@ -186,14 +218,23 @@ export class Simulation {
       this.obstacles.push({
         id: this.objId++,
         type: 'coin',
-        x: x + 20,
+        x: x + 50,
         y: CONSTS.GROUND_Y - 110,
         w: 22,
         h: 22,
         collected: false
       });
     } else if (r < 0.82) {
-      // Koopa Troopa (Turtle)
+      // Koopa Troopa (Turtle) with ? question block overhead
+      this.obstacles.push({
+        id: this.objId++,
+        type: 'block',
+        x: x - 45,
+        y: CONSTS.GROUND_Y - 120,
+        w: 32,
+        h: 32,
+        hit: false
+      });
       this.obstacles.push({
         id,
         type: 'koopa',
@@ -259,38 +300,35 @@ export class Simulation {
 
   public popBlock(b: GroundObstacle) {
     b.hit = true;
-    b.bounceY = -10;
+    b.bounceY = -12;
 
-    // 30% chance for Super Mushroom, 70% chance for Coin
-    if (Math.random() < 0.35) {
-      this.obstacles.push({
-        id: this.objId++,
-        type: 'mushroom',
-        x: b.x,
-        y: b.y - 28,
-        w: 28,
-        h: 28,
-        vx: 2.2
+    // Mario hits ? box with his head: gets +5 countable shooting bullets & +1 coin!
+    this.coins++;
+    this.score += 100;
+    this.fireAmmo += 5;
+    this.addScorePopup('+5 BULLETS! 🔥', b.x - 12, b.y - 32, '#ff4500');
+    this.addScorePopup('+1 🪙', b.x + 8, b.y - 12, '#ffd700');
+    sounds.playScore();
+
+    // Spurt a spinning coin popping out of the ? box
+    this.poppingCoins.push({
+      x: b.x + 6,
+      y: b.y - 12,
+      vy: -7.5,
+      frame: 0,
+      alive: true
+    });
+
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x: b.x + 16,
+        y: b.y - 12,
+        vx: (Math.random() - 0.5) * 5,
+        vy: -4 - Math.random() * 4,
+        l: 1,
+        c: i % 2 === 0 ? '#ff7700' : '#ffd700',
+        r: Math.random() * 4 + 2
       });
-      this.addScorePopup('MUSHROOM!', b.x, b.y - 30, '#ffd700');
-    } else {
-      this.coins++;
-      this.score += 100;
-      this.fireAmmo += 3;
-      this.addScorePopup('+100 & +3 FIRE!', b.x, b.y - 20, '#ffd700');
-      sounds.playScore();
-
-      for (let i = 0; i < 6; i++) {
-        this.particles.push({
-          x: b.x + 16,
-          y: b.y - 12,
-          vx: (Math.random() - 0.5) * 4,
-          vy: -4 - Math.random() * 3,
-          l: 1,
-          c: '#ffd700',
-          r: Math.random() * 3
-        });
-      }
     }
   }
 
@@ -443,6 +481,17 @@ export class Simulation {
         }
       }
 
+      // Update Popping Coins (popped from ? boxes)
+      for (let i = this.poppingCoins.length - 1; i >= 0; i--) {
+        const pc = this.poppingCoins[i];
+        pc.vy += 0.45;
+        pc.y += pc.vy;
+        pc.frame++;
+        if (pc.vy > 4) {
+          this.poppingCoins.splice(i, 1);
+        }
+      }
+
       while (this.obstacles.length > 0 && this.obstacles[0].x + this.obstacles[0].w < -60) {
         this.obstacles.shift();
       }
@@ -489,35 +538,23 @@ export class Simulation {
         hazard_height: hazardH,
         item_box: boxType,
         item_box_dist: boxDist,
-        can_shoot: true,
+        can_shoot: this.fireAmmo > 0,
+        fire_ammo: this.fireAmmo,
         run_speed: speed
       };
 
       if (!this.humanControl && m.alive) {
-        // Query Jev LLM for real-time telemetry, JSON streaming, and reasoning
+        // 100% PURE LLM CONTROL: Mario acts SOLELY when Groq LLM API responds!
         jevClient.decide(state, nowMs).then(dec => {
-          if (dec.shouldShoot && m.alive) {
+          if (!m.alive || this.humanControl) return;
+          if (dec.action === 'SHOOT' && this.fireAmmo > 0) {
             this.shoot();
-          } else if (dec.shouldJump && m.alive && m.isGrounded) {
+            this.addScorePopup(`🧠 LLM: SHOOT! (${dec.reason || 'Blast enemy'})`, CONSTS.MARIO_X, m.y - 30, '#ff4500');
+          } else if (dec.action === 'JUMP' && m.isGrounded) {
             this.jump();
+            this.addScorePopup(`🧠 LLM: JUMP! (${dec.reason || 'Jump action'})`, CONSTS.MARIO_X, m.y - 30, '#22c55e');
           }
         });
-
-        // Instantaneous, low-latency execution policy matching Jev's decisions:
-        if (m.isGrounded) {
-          // A. Jump to hit ? block from underneath or collect overhead coins:
-          if (boxType !== 'none' && boxDist <= 75 && boxDist >= 35) {
-            this.jump();
-          }
-          // B. Jump to clear ground hazard:
-          else if (hazardType !== 'none' && hazardDist <= 85 && hazardDist >= 35) {
-            this.jump();
-          }
-          // C. Shoot fireball at oncoming enemies in distance:
-          else if ((hazardType === 'goomba' || hazardType === 'koopa') && hazardDist <= 220 && hazardDist > 85 && Math.random() < 0.06) {
-            this.shoot();
-          }
-        }
       }
 
       // Collisions
@@ -555,13 +592,13 @@ export class Simulation {
         if (ob.type === 'block') {
           if (mx + mw > ob.x + 2 && mx < ob.x + ob.w - 2) {
             // 1. Mario hits from underneath (head hits bottom of block):
-            if (m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 18) {
+            if (m.vy < 0 && my <= ob.y + ob.h + 3 && my >= ob.y) {
               m.y = ob.y + ob.h; // solid clamp - cannot phase through!
-              m.vy = 3;          // bump downward
+              m.vy = 3.5;        // bump downward
               if (!ob.hit) this.popBlock(ob);
             }
             // 2. Mario lands on top of the block:
-            else if (m.vy >= 0 && my + mh >= ob.y - 8 && my + mh <= ob.y + 14) {
+            else if (m.vy >= 0 && my + mh >= ob.y - 8 && my + mh <= ob.y + 16) {
               m.y = ob.y - mh;
               m.vy = 0;
               m.isGrounded = true;
@@ -574,13 +611,13 @@ export class Simulation {
         if (ob.type === 'brick') {
           if (mx + mw > ob.x + 2 && mx < ob.x + ob.w - 2) {
             // 1. Mario hits from underneath:
-            if (m.vy < 0 && my <= ob.y + ob.h && my >= ob.y + ob.h - 18) {
+            if (m.vy < 0 && my <= ob.y + ob.h + 3 && my >= ob.y) {
               m.y = ob.y + ob.h; // solid clamp
-              m.vy = 3;
+              m.vy = 3.5;
               this.popBrick(ob);
             }
             // 2. Mario lands on top of the brick:
-            else if (m.vy >= 0 && my + mh >= ob.y - 8 && my + mh <= ob.y + 14) {
+            else if (m.vy >= 0 && my + mh >= ob.y - 8 && my + mh <= ob.y + 16) {
               m.y = ob.y - mh;
               m.vy = 0;
               m.isGrounded = true;

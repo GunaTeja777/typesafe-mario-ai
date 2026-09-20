@@ -8,6 +8,7 @@ import {
   koopaSprites,
   koopaShellSprite,
   questionBlockSprite,
+  emptyBlockSprite,
   brickBlockSprite,
   mushroomSprite,
   coinSprites
@@ -273,22 +274,33 @@ export class CanvasRenderer {
 
     const scoreStr = `MARIO\n${pad(sim.score, 6)}`;
     const coinStr = `COINS\n🪙x${pad(sim.coins, 2)}`;
-    const fireStr = `FIRE\n🔥x${pad(sim.fireAmmo, 2)}`;
+    const fireStr = `AMMO 🔥\n${pad(sim.fireAmmo, 2)} BULLETS`;
     const worldStr = `WORLD\n 1-1`;
     const genStr = `GEN\n ${sim.gen}`;
 
-    const drawPill = (txt: string, x: number, y: number) => {
-      c.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    const drawPill = (txt: string, x: number, y: number, highlight: boolean = false) => {
+      if (highlight) {
+        c.save();
+        c.fillStyle = 'rgba(234, 88, 12, 0.45)';
+        c.strokeStyle = '#f97316';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.roundRect(x - 6, y - 4, 130, 46, 6);
+        c.fill();
+        c.stroke();
+        c.restore();
+      }
+      c.fillStyle = 'rgba(0, 0, 0, 0.5)';
       c.fillText(txt, x + 1, y + 1);
-      c.fillStyle = '#ffffff';
+      c.fillStyle = highlight ? '#ffedd5' : '#ffffff';
       c.fillText(txt, x, y);
     };
 
     // Safe margins across widescreen
     drawPill(scoreStr, 34, 18);
-    drawPill(coinStr, 190, 18);
-    drawPill(fireStr, 335, 18);
-    drawPill(worldStr, 475, 18);
+    drawPill(coinStr, 175, 18);
+    drawPill(fireStr, 310, 18, sim.fireAmmo > 0);
+    drawPill(worldStr, 480, 18);
     drawPill(genStr, 615, 18);
 
     c.restore();
@@ -312,7 +324,7 @@ export class CanvasRenderer {
         this.drawPipe(ob.x, ob.y, ob.w, ob.h);
       } else if (ob.type === 'block') {
         const by = ob.bounceY ? ob.y + ob.bounceY : ob.y;
-        c.drawImage(questionBlockSprite, ob.x, by, ob.w, ob.h);
+        c.drawImage(ob.hit ? emptyBlockSprite : questionBlockSprite, ob.x, by, ob.w, ob.h);
       } else if (ob.type === 'brick') {
         const by = ob.bounceY ? ob.y + ob.bounceY : ob.y;
         c.drawImage(brickBlockSprite, ob.x, by, ob.w, ob.h);
@@ -335,6 +347,12 @@ export class CanvasRenderer {
       } else if (ob.type === 'koopa_shell') {
         c.drawImage(koopaShellSprite, ob.x, ob.y, ob.w, ob.h);
       }
+    }
+
+    // Render Popping Coins from ? question boxes
+    for (const pc of sim.poppingCoins) {
+      const f = Math.floor(pc.frame / 3) % 4;
+      c.drawImage(coinSprites[f], pc.x, pc.y, 22, 22);
     }
 
     this.drawGround(sim.dist);

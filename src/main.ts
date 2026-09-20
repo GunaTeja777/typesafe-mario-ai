@@ -80,6 +80,19 @@ function initApp() {
   function loop(timeMs: number) {
     sim.step(timeMs);
     renderer.render(sim);
+
+    if (sim.fireAmmo > 0) {
+      shootBtn.textContent = `🔥 Shoot (${sim.fireAmmo})`;
+      shootBtn.classList.add('has-ammo');
+      shootBtn.classList.remove('no-ammo');
+      shootBtn.title = `You have ${sim.fireAmmo} fire bullets! Click or press [X] / [F] / [Ctrl] to shoot!`;
+    } else {
+      shootBtn.textContent = `🔥 Shoot (0)`;
+      shootBtn.classList.remove('has-ammo');
+      shootBtn.classList.add('no-ammo');
+      shootBtn.title = 'Hit ? boxes with Mario\'s head to get +5 shooting bullets!';
+    }
+
     requestAnimationFrame(loop);
   }
 
