@@ -280,14 +280,14 @@ export class CanvasRenderer {
     const worldStr = `WORLD ${stageEmoji}\n ${stage.tag} ${stage.name}`;
     const genStr = `GEN\n ${sim.gen}`;
 
-    const drawPill = (txt: string, x: number, y: number, highlight: boolean = false) => {
+    const drawPill = (txt: string, x: number, y: number, highlight: boolean = false, width: number = 135) => {
       if (highlight) {
         c.save();
         c.fillStyle = 'rgba(234, 88, 12, 0.45)';
         c.strokeStyle = '#f97316';
         c.lineWidth = 1.5;
         c.beginPath();
-        c.roundRect(x - 6, y - 4, 130, 46, 6);
+        c.roundRect(x - 6, y - 4, width, 46, 6);
         c.fill();
         c.stroke();
         c.restore();
@@ -298,12 +298,12 @@ export class CanvasRenderer {
       c.fillText(txt, x, y);
     };
 
-    // Safe margins across widescreen
-    drawPill(scoreStr, 34, 18);
-    drawPill(coinStr, 175, 18);
-    drawPill(fireStr, 310, 18, sim.fireAmmo > 0);
-    drawPill(worldStr, 480, 18, stage.stage === 3);
-    drawPill(genStr, 630, 18);
+    // Clean, uncrowded spacing across expanded 880px widescreen
+    drawPill(scoreStr, 34, 18, false, 135);
+    drawPill(coinStr, 195, 18, false, 130);
+    drawPill(fireStr, 350, 18, sim.fireAmmo > 0, 150);
+    drawPill(worldStr, 525, 18, stage.stage === 3, 165);
+    drawPill(genStr, 715, 18, false, 115);
 
     c.restore();
   }

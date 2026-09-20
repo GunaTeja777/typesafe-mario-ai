@@ -43,7 +43,7 @@ export interface PoppingCoin {
 }
 
 export const CONSTS = {
-  W: 760, // Widescreen Mario Viewport
+  W: 880, // Widescreen Mario Viewport (expanded width for broader track vision and widescreen fit)
   H: 640,
   GROUND_Y: 550, // Ground starts at y = 550 (90px tall)
   MARIO_X: 110,
