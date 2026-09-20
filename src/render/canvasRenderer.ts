@@ -333,9 +333,35 @@ export class CanvasRenderer {
       } else if (ob.type === 'koopa_shell') {
         c.drawImage(koopaShellSprite, ob.x, ob.y, ob.w, ob.h);
       }
-    }
-
     this.drawGround(sim.dist);
+
+    // Render Fireballs
+    for (const fb of sim.fireballs) {
+      c.save();
+      c.translate(fb.x, fb.y);
+
+      // Outer Fiery Glow
+      const grad = c.createRadialGradient(0, 0, 1, 0, 0, fb.r + 3);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, '#ffcc00');
+      grad.addColorStop(0.7, '#ff4400');
+      grad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      c.fillStyle = grad;
+      c.beginPath();
+      c.arc(0, 0, fb.r + 3, 0, Math.PI * 2);
+      c.fill();
+
+      // Inner Core
+      c.fillStyle = '#ff9900';
+      c.strokeStyle = '#000000';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.arc(0, 0, fb.r - 2, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+
+      c.restore();
+    }
 
     // Mario Character
     const m = sim.mario;

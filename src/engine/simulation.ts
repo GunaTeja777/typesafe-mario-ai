@@ -24,6 +24,16 @@ export interface FloatingScore {
   color: string;
 }
 
+export interface Fireball {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  alive: boolean;
+}
+
 export const CONSTS = {
   W: 760, // Widescreen Mario Viewport
   H: 640,
@@ -60,9 +70,11 @@ export class Simulation {
   public obstacles: GroundObstacle[] = [];
   public particles: Array<{ x: number; y: number; vx: number; vy: number; l: number; c: string; r: number }> = [];
   public floatingScores: FloatingScore[] = [];
+  public fireballs: Fireball[] = [];
 
   private nextSpawnX: number = 420;
   private objId: number = 0;
+  private lastShootTick: number = 0;
 
   constructor() {
     this.restart();
@@ -84,6 +96,7 @@ export class Simulation {
     this.obstacles = [];
     this.particles = [];
     this.floatingScores = [];
+    this.fireballs = [];
     this.nextSpawnX = 420;
     this.objId = 0;
 
@@ -91,15 +104,27 @@ export class Simulation {
   }
 
   public jump() {
-    if (!this.mario.alive) {
-      this.restart();
-      return;
-    }
+    if (!this.mario.alive) return;
     if (this.mario.isGrounded) {
       this.mario.vy = CONSTS.JUMP_IMPULSE;
       this.mario.isGrounded = false;
       sounds.playFlap();
     }
+  }
+
+  public shoot() {
+    if (!this.mario.alive) return;
+    this.fireballs.push({
+      id: this.objId++,
+      x: CONSTS.MARIO_X + 24,
+      y: this.mario.y + 14,
+      vx: 8.5,
+      vy: 1.5,
+      r: 7,
+      alive: true
+    });
+    sounds.playFireball();
+    this.addScorePopup('FIREBALL!', CONSTS.MARIO_X + 20, this.mario.y - 12, '#ff6600');
   }
 
   public addScorePopup(text: string, x: number, y: number, color: string = '#ffffff') {
@@ -363,61 +388,125 @@ export class Simulation {
         }
       }
 
+      // Update Fireballs (Mario Fire Flower Attack)
+      for (let i = this.fireballs.length - 1; i >= 0; i--) {
+        const fb = this.fireballs[i];
+        fb.x += fb.vx;
+        fb.vy += 0.55; // gravity
+        fb.y += fb.vy;
+
+        // Bounce on ground
+        if (fb.y >= CONSTS.GROUND_Y - fb.r) {
+          fb.y = CONSTS.GROUND_Y - fb.r;
+          fb.vy = -4.6; // bounce!
+          for (let p = 0; p < 3; p++) {
+            this.particles.push({
+              x: fb.x,
+              y: fb.y,
+              vx: (Math.random() - 0.5) * 3,
+              vy: -Math.random() * 3,
+              l: 0.8,
+              c: '#ff7700',
+              r: Math.random() * 3
+            });
+          }
+        }
+
+        // Check collision with enemies (Goomba / Koopa)
+        for (const ob of this.obstacles) {
+          if ((ob.type === 'goomba' || ob.type === 'koopa') && ob.alive) {
+            if (Math.abs(fb.x - (ob.x + ob.w / 2)) < ob.w / 2 + fb.r &&
+                Math.abs(fb.y - (ob.y + ob.h / 2)) < ob.h / 2 + fb.r) {
+              ob.alive = false;
+              fb.alive = false;
+              this.burstGoomba(ob.x + 15, ob.y + 15);
+              sounds.playScore();
+              this.score += 300;
+              this.addScorePopup('+300 FIRE!', ob.x, ob.y - 10, '#ff4500');
+              break;
+            }
+          }
+        }
+
+        // Clean up out of bounds
+        if (fb.x > CONSTS.W + 60 || fb.y > CONSTS.H || !fb.alive) {
+          this.fireballs.splice(i, 1);
+        }
+      }
+
       while (this.obstacles.length > 0 && this.obstacles[0].x + this.obstacles[0].w < -60) {
         this.obstacles.shift();
       }
       this.fillObstacles();
 
-      // Identify nearest GROUND THREAT for Jev (pipes, goombas, koopas)
-      let nearestObs: GroundObstacle | null = null;
-      let nextObs: GroundObstacle | null = null;
-
+      // 1. Identify nearest GROUND THREAT (pipe, live goomba, live koopa)
+      let nearestHazard: GroundObstacle | null = null;
       for (const ob of this.obstacles) {
-        // Collectibles and overhead blocks are NOT ground threats!
-        if (ob.type === 'coin' || ob.type === 'mushroom' || ob.type === 'block' || ob.type === 'brick') continue;
+        if (ob.type !== 'warp_pipe' && ob.type !== 'goomba' && ob.type !== 'koopa') continue;
         if ((ob.type === 'goomba' || ob.type === 'koopa') && !ob.alive) continue;
-        if (ob.type === 'koopa_shell' && (ob.vx || 0) > 0) continue; // Sliding away safely!
-
         const dist = ob.x - CONSTS.MARIO_X;
         if (dist > -ob.w) {
-          if (!nearestObs) {
-            nearestObs = ob;
-          } else if (!nextObs) {
-            nextObs = ob;
-            break;
-          }
+          nearestHazard = ob;
+          break;
         }
       }
 
-      const obsDist = nearestObs ? Math.max(0, Math.round(nearestObs.x - CONSTS.MARIO_X)) : 500;
-      const obsType = nearestObs ? nearestObs.type : 'none';
-      const obsH = nearestObs ? nearestObs.h : 0;
-      const nextDist = nextObs ? Math.max(0, Math.round(nextObs.x - CONSTS.MARIO_X)) : 800;
-      const nextType = nextObs ? nextObs.type : 'none';
+      // 2. Identify nearest OVERHEAD ITEM BOX / COIN (? block, brick, coin)
+      let nearestBox: GroundObstacle | null = null;
+      for (const ob of this.obstacles) {
+        if (ob.type !== 'block' && ob.type !== 'brick' && ob.type !== 'coin') continue;
+        if (ob.type === 'block' && ob.hit) continue;
+        if (ob.type === 'coin' && ob.collected) continue;
+        const dist = ob.x - CONSTS.MARIO_X;
+        if (dist > -ob.w) {
+          nearestBox = ob;
+          break;
+        }
+      }
+
+      const hazardDist = nearestHazard ? Math.max(0, Math.round(nearestHazard.x - CONSTS.MARIO_X)) : 999;
+      const hazardType = nearestHazard ? nearestHazard.type : 'none';
+      const hazardH = nearestHazard ? nearestHazard.h : 0;
+
+      const boxDist = nearestBox ? Math.max(0, Math.round(nearestBox.x - CONSTS.MARIO_X)) : 999;
+      const boxType = nearestBox ? (nearestBox.type === 'block' ? 'question_block' : nearestBox.type === 'brick' ? 'brick' : 'coin') : 'none';
 
       const state: JevMarioState = {
         mario_y: Math.round(CONSTS.GROUND_Y - marioH - m.y),
         mario_vy: +m.vy.toFixed(1),
         is_grounded: m.isGrounded,
-        obstacle_type: obsType === 'warp_pipe' ? 'warp_pipe' : (obsType === 'goomba' || obsType === 'koopa' ? 'goomba' : 'none'),
-        obstacle_dist: obsDist,
-        obstacle_height: obsH,
-        next_obstacle: nextType === 'warp_pipe' ? 'warp_pipe' : (nextType === 'goomba' || nextType === 'koopa' ? 'goomba' : 'none'),
-        next_dist: nextDist,
+        ground_hazard: hazardType === 'warp_pipe' ? 'warp_pipe' : (hazardType === 'goomba' || hazardType === 'koopa' ? 'goomba' : 'none'),
+        hazard_dist: hazardDist,
+        hazard_height: hazardH,
+        item_box: boxType,
+        item_box_dist: boxDist,
+        can_shoot: true,
         run_speed: speed
       };
 
-      if (!this.humanControl) {
+      if (!this.humanControl && m.alive) {
         // Query Jev LLM for real-time telemetry, JSON streaming, and reasoning
-        jevClient.decide(state, nowMs);
-
-        // Immediate autonomous jump response:
-        // Jump when approaching a ground hazard within the physics-calibrated window!
-        if (m.alive && m.isGrounded && nearestObs) {
-          const isHazard = obsType === 'warp_pipe' || obsType === 'goomba' || obsType === 'koopa';
-          // Calibrated jump window: 35px to 85px gives Mario perfect parabolic arc to clear or land on obstacles
-          if (isHazard && obsDist <= 85 && obsDist >= 35) {
+        jevClient.decide(state, nowMs).then(dec => {
+          if (dec.shouldShoot && m.alive) {
+            this.shoot();
+          } else if (dec.shouldJump && m.alive && m.isGrounded) {
             this.jump();
+          }
+        });
+
+        // Instantaneous, low-latency execution policy matching Jev's decisions:
+        if (m.isGrounded) {
+          // A. Jump to hit ? block from underneath or collect overhead coins:
+          if (boxType !== 'none' && boxDist <= 75 && boxDist >= 35) {
+            this.jump();
+          }
+          // B. Jump to clear ground hazard:
+          else if (hazardType !== 'none' && hazardDist <= 85 && hazardDist >= 35) {
+            this.jump();
+          }
+          // C. Shoot fireball at oncoming enemies in distance:
+          else if ((hazardType === 'goomba' || hazardType === 'koopa') && hazardDist <= 220 && hazardDist > 85 && Math.random() < 0.06) {
+            this.shoot();
           }
         }
       }

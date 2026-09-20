@@ -2,12 +2,13 @@ export interface JevMarioState {
   mario_y: number;         // Height above ground (0 = grounded)
   mario_vy: number;        // Vertical velocity
   is_grounded: boolean;    // Is Mario running on the ground
-  obstacle_type: 'goomba' | 'warp_pipe' | 'none';
-  obstacle_dist: number;   // Horizontal distance to closest obstacle in px
-  obstacle_height: number; // Height of obstacle in px
-  next_obstacle: 'goomba' | 'warp_pipe' | 'none';
-  next_dist: number;       // Distance to subsequent obstacle
-  run_speed: number;       // Scrolling / run speed
+  ground_hazard: 'warp_pipe' | 'goomba' | 'koopa' | 'none';
+  hazard_dist: number;     // Horizontal distance to closest ground hazard
+  hazard_height: number;   // Height of hazard in px
+  item_box: 'question_block' | 'brick' | 'coin' | 'none';
+  item_box_dist: number;   // Horizontal distance to overhead item box / coin
+  can_shoot: boolean;      // Can Mario shoot fireballs
+  run_speed: number;       // Speed
 }
 
 export interface JevDecisionRequest {
@@ -15,7 +16,7 @@ export interface JevDecisionRequest {
   provider?: string;
   state: JevMarioState;
   questions: {
-    urgency: {
+    action: {
       type: 'score';
       instructions: string;
       criteria: string[];
@@ -29,6 +30,7 @@ export interface JevDecisionResponse {
     urgency: {
       type: 'score';
       score: number;
+      action?: 'RUN' | 'JUMP' | 'SHOOT';
       legend?: Record<string, string>;
       probabilities: {
         '0': number;
@@ -44,6 +46,14 @@ export interface JevDecisionResponse {
   };
 }
 
+export interface JevDecisionResult {
+  action: 'RUN' | 'JUMP' | 'SHOOT';
+  shouldJump: boolean;
+  shouldShoot: boolean;
+  score: number;
+  reason: string;
+}
+
 export interface JevTelemetry {
   callCount: number;
   lastStatus: number;
@@ -51,7 +61,8 @@ export interface JevTelemetry {
   estimatedCost: number;
   lastScore: number;
   lastConfidence: number;
-  lastDecision: 'WAIT' | 'JUMP';
+  lastDecision: 'RUN' | 'JUMP' | 'SHOOT';
+  lastDecisionReason: string;
   lastRequest: JevDecisionRequest | null;
   lastResponse: JevDecisionResponse | null;
   apiKeySet: boolean;
@@ -85,11 +96,12 @@ export class JevClient {
       mario_y: 0,
       mario_vy: 0,
       is_grounded: true,
-      obstacle_type: 'goomba',
-      obstacle_dist: 145,
-      obstacle_height: 32,
-      next_obstacle: 'warp_pipe',
-      next_dist: 320,
+      ground_hazard: 'goomba',
+      hazard_dist: 145,
+      hazard_height: 30,
+      item_box: 'question_block',
+      item_box_dist: 70,
+      can_shoot: true,
       run_speed: 3.8
     };
 
@@ -99,18 +111,19 @@ export class JevClient {
       answers: {
         urgency: {
           type: 'score',
-          score: 0.23,
+          score: 1.1,
+          action: 'JUMP',
           legend: {
-            '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
-            '1': 'Soon: Obstacle is within 85-180px, prepare jump...',
-            '2': 'Right now: Obstacle is directly ahead (35-85px), jump immediately!'
+            '0': 'Run: Path clear or airborne, running safely...',
+            '1': 'Jump: Jump to hit overhead ? box or clear pipe/enemy!',
+            '2': 'Shoot: Shoot fireball to eliminate oncoming enemy!'
           },
           probabilities: {
-            '0': 0.79,
-            '1': 0.19,
-            '2': 0.02
+            '0': 0.08,
+            '1': 0.89,
+            '2': 0.03
           },
-          confidence: 0.66
+          confidence: 0.88
         }
       },
       usage: {
@@ -122,11 +135,12 @@ export class JevClient {
     this.telemetry = {
       callCount: 1,
       lastStatus: 200,
-      lastLatencyMs: 120,
+      lastLatencyMs: 85,
       estimatedCost: 0.000005,
-      lastScore: 0.23,
-      lastConfidence: 0.66,
-      lastDecision: 'WAIT',
+      lastScore: 1.1,
+      lastConfidence: 0.88,
+      lastDecision: 'JUMP',
+      lastDecisionReason: 'Hit ? Block for Coins & Power-up',
       lastRequest: initialReq,
       lastResponse: initialRes,
       apiKeySet: !!this.apiKey,
@@ -182,13 +196,13 @@ export class JevClient {
       provider: this.provider,
       state: { ...state },
       questions: {
-        urgency: {
+        action: {
           type: 'score',
-          instructions: 'Score jump urgency from 0 (safely running, obstacle far away) to 2 (jump immediately to avoid death or stomp enemy)',
+          instructions: 'Choose Mario optimal action: 0 = RUN (safe), 1 = JUMP (clear pipe / stomp enemy / hit ? box for coins), 2 = SHOOT (fireball at oncoming enemy)',
           criteria: [
-            'Level 0 (Not at all): Obstacle > 180px away or Mario is currently airborne in a jump arc',
-            'Level 1 (Soon): Obstacle is within 85px to 180px, approach phase',
-            'Level 2 (Right now): Obstacle is within 35px to 85px and Mario is grounded, jump immediately!'
+            'Level 0 (RUN): Running safely, no hazards or item boxes directly ahead',
+            'Level 1 (JUMP): Jump now! Pipe ahead (35-85px), enemy in front (35-75px), or overhead ? block/coin (40-85px)',
+            'Level 2 (SHOOT): Shoot fireball now! Oncoming enemy (goomba/koopa) in range (60-220px)'
           ]
         }
       }
@@ -198,11 +212,14 @@ export class JevClient {
   public async decide(
     state: JevMarioState,
     now: number
-  ): Promise<{ shouldJump: boolean; score: number }> {
+  ): Promise<JevDecisionResult> {
     if (now - this.lastCallTime < this.queryIntervalMs) {
       return {
-        shouldJump: this.telemetry.lastScore >= 1.0,
-        score: this.telemetry.lastScore
+        action: this.telemetry.lastDecision,
+        shouldJump: this.telemetry.lastDecision === 'JUMP',
+        shouldShoot: this.telemetry.lastDecision === 'SHOOT',
+        score: this.telemetry.lastScore,
+        reason: this.telemetry.lastDecisionReason
       };
     }
     this.lastCallTime = now;
@@ -233,28 +250,36 @@ export class JevClient {
     state: JevMarioState,
     payload: JevDecisionRequest,
     now: number
-  ): Promise<{ shouldJump: boolean; score: number }> {
+  ): Promise<JevDecisionResult> {
     this.inFlight = true;
     const startTime = performance.now();
 
     try {
-      const systemPrompt = `You are Jev, a gaming AI driving Mario in Super Mario World. Analyze Mario's telemetry:
-mario_y: ${state.mario_y}, mario_vy: ${state.mario_vy}, is_grounded: ${state.is_grounded}
-obstacle_type: "${state.obstacle_type}", obstacle_dist: ${state.obstacle_dist}px, obstacle_height: ${state.obstacle_height}px
-next_obstacle: "${state.next_obstacle}", next_dist: ${state.next_dist}px, run_speed: ${state.run_speed}
+      const systemPrompt = `You are Jev, the AI mind controlling Mario in Super Mario World. Analyze Mario's live telemetry:
+- Mario: y=${state.mario_y}px, vy=${state.mario_vy}, grounded=${state.is_grounded}
+- Ground Hazard: ${state.ground_hazard} at distance ${state.hazard_dist}px (height: ${state.hazard_height}px)
+- Overhead Item Box: ${state.item_box} at distance ${state.item_box_dist}px
+- Can Shoot Fireballs: ${state.can_shoot}
+- Run Speed: ${state.run_speed}px/frame
 
-Determine jump urgency (0=Not at all, 1=Soon, 2=Right now).
-Rule: If Mario is airborne (!is_grounded), urgency is 0. If obstacle_dist is between 35px and 85px and grounded, urgency is 2 (JUMP NOW to clear obstacle or stomp enemy). If obstacle_dist is between 85px and 180px, urgency is 1. Else 0.
+Determine Mario's action (Level 0, 1, or 2):
+- Level 0 (RUN): Running safely forward, no immediate obstacles or overhead item boxes.
+- Level 1 (JUMP): Jump immediately! Use this when:
+  * An overhead ? block or coin is directly above (item_box_dist between 40px and 85px) to hit and collect coins!
+  * Ground hazard (warp_pipe, goomba, koopa) is directly ahead (hazard_dist between 35px and 85px) to clear or stomp!
+- Level 2 (SHOOT): Shoot a fireball! Use this when an oncoming enemy (goomba or koopa) is in front (hazard_dist between 60px and 220px).
 
 Respond strictly in valid JSON:
 {
+  "action": "RUN" | "JUMP" | "SHOOT",
+  "reason": "<short explanation>",
   "urgency": {
     "score": <float between 0.0 and 2.0>,
     "confidence": <float between 0.5 and 0.99>,
     "probabilities": {
-      "0": <float>,
-      "1": <float>,
-      "2": <float>
+      "0": <float for RUN>,
+      "1": <float for JUMP>,
+      "2": <float for SHOOT>
     }
   }
 }`;
@@ -269,7 +294,7 @@ Respond strictly in valid JSON:
           model: this.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Current state: obstacle ${state.obstacle_type} at distance ${state.obstacle_dist}px. Jump?` }
+            { role: 'user', content: `Current Mario state: hazard=${state.ground_hazard} (${state.hazard_dist}px), box=${state.item_box} (${state.item_box_dist}px). Decide Action!` }
           ],
           response_format: { type: 'json_object' },
           temperature: 0.1,
@@ -292,14 +317,33 @@ Respond strictly in valid JSON:
           // fallback
         }
 
-        const score = parsed?.urgency?.score ?? (state.obstacle_dist <= 85 && state.obstacle_dist >= 35 && state.is_grounded ? 1.85 : 0.15);
-        const confidence = parsed?.urgency?.confidence ?? 0.88;
+        let action: 'RUN' | 'JUMP' | 'SHOOT' = parsed?.action;
+        let reason: string = parsed?.reason || '';
+
+        // Deterministic check if model omitted fields
+        if (!action) {
+          if (state.item_box !== 'none' && state.item_box_dist <= 85 && state.item_box_dist >= 40 && state.is_grounded) {
+            action = 'JUMP';
+            reason = 'Hit ? Box for Coins & Power-ups';
+          } else if (state.hazard_dist <= 85 && state.hazard_dist >= 35 && state.is_grounded) {
+            action = 'JUMP';
+            reason = `Leap over ${state.ground_hazard}`;
+          } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 220 && state.hazard_dist > 85) {
+            action = 'SHOOT';
+            reason = `Blast ${state.ground_hazard} with fireball`;
+          } else {
+            action = 'RUN';
+            reason = 'Safe cruise along ground';
+          }
+        }
+
+        const score = parsed?.urgency?.score ?? (action === 'SHOOT' ? 1.9 : action === 'JUMP' ? 1.2 : 0.15);
+        const confidence = parsed?.urgency?.confidence ?? 0.92;
         const probs = parsed?.urgency?.probabilities ?? {
-          '0': score < 0.6 ? 0.82 : 0.05,
-          '1': score >= 0.6 && score < 1.2 ? 0.75 : 0.15,
-          '2': score >= 1.2 ? 0.85 : 0.05
+          '0': action === 'RUN' ? 0.88 : 0.05,
+          '1': action === 'JUMP' ? 0.90 : 0.08,
+          '2': action === 'SHOOT' ? 0.92 : 0.05
         };
-        const shouldJump = score >= 1.0;
 
         const formattedResponse: JevDecisionResponse = {
           model: `${this.model}-groq`,
@@ -307,10 +351,11 @@ Respond strictly in valid JSON:
             urgency: {
               type: 'score',
               score,
+              action,
               legend: {
-                '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
-                '1': 'Soon: Obstacle is within 85-180px, prepare jump...',
-                '2': 'Right now: Obstacle is directly ahead (35-85px), jump immediately!'
+                '0': 'Run: Path clear or airborne, running safely...',
+                '1': 'Jump: Jump to hit overhead ? box or clear pipe/enemy!',
+                '2': 'Shoot: Shoot fireball to eliminate oncoming enemy!'
               },
               probabilities: {
                 '0': +probs['0'].toFixed(2),
@@ -320,7 +365,7 @@ Respond strictly in valid JSON:
               confidence: +confidence.toFixed(2)
             }
           },
-          usage: groqData.usage || { prompt_tokens: 88, completion_tokens: 28 }
+          usage: groqData.usage || { prompt_tokens: 95, completion_tokens: 32 }
         };
 
         this.telemetry = {
@@ -330,7 +375,8 @@ Respond strictly in valid JSON:
           estimatedCost: this.totalCost,
           lastScore: score,
           lastConfidence: confidence,
-          lastDecision: shouldJump ? 'JUMP' : 'WAIT',
+          lastDecision: action,
+          lastDecisionReason: reason,
           lastRequest: payload,
           lastResponse: formattedResponse,
           apiKeySet: true,
@@ -340,7 +386,7 @@ Respond strictly in valid JSON:
 
         if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);
         this.inFlight = false;
-        return { shouldJump, score };
+        return { action, shouldJump: action === 'JUMP', shouldShoot: action === 'SHOOT', score, reason };
       } else {
         this.inFlight = false;
         if (resp.status === 429) {
@@ -355,7 +401,7 @@ Respond strictly in valid JSON:
     }
   }
 
-  private async callOpenRouterApi(payload: JevDecisionRequest): Promise<{ shouldJump: boolean; score: number }> {
+  private async callOpenRouterApi(payload: JevDecisionRequest): Promise<JevDecisionResult> {
     this.inFlight = true;
     const startTime = performance.now();
     try {
@@ -376,7 +422,7 @@ Respond strictly in valid JSON:
         const data: JevDecisionResponse = await resp.json();
         const score = data.answers?.urgency?.score ?? 0;
         const confidence = data.answers?.urgency?.confidence ?? 0.7;
-        const shouldJump = score >= 1.0;
+        const action = score >= 1.5 ? 'SHOOT' : score >= 0.8 ? 'JUMP' : 'RUN';
 
         this.telemetry = {
           callCount: this.callCount,
@@ -385,7 +431,8 @@ Respond strictly in valid JSON:
           estimatedCost: this.totalCost,
           lastScore: score,
           lastConfidence: confidence,
-          lastDecision: shouldJump ? 'JUMP' : 'WAIT',
+          lastDecision: action,
+          lastDecisionReason: action === 'JUMP' ? 'Leap / Hit Box' : action === 'SHOOT' ? 'Fire Fireball' : 'Cruise',
           lastRequest: payload,
           lastResponse: data,
           apiKeySet: true,
@@ -395,7 +442,7 @@ Respond strictly in valid JSON:
 
         if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);
         this.inFlight = false;
-        return { shouldJump, score };
+        return { action, shouldJump: action === 'JUMP', shouldShoot: action === 'SHOOT', score, reason: this.telemetry.lastDecisionReason };
       } else {
         this.inFlight = false;
         return this.simulateJevDecision(payload.state, payload, resp.status);
@@ -410,36 +457,51 @@ Respond strictly in valid JSON:
     state: JevMarioState,
     payload: JevDecisionRequest,
     statusOverride: number = 200
-  ): { shouldJump: boolean; score: number } {
+  ): JevDecisionResult {
     this.callCount++;
     this.totalCost += 0.000005;
 
+    let action: 'RUN' | 'JUMP' | 'SHOOT' = 'RUN';
+    let reason = 'Safe cruise along the ground';
     let p0 = 0.85;
-    let p1 = 0.12;
-    let p2 = 0.03;
+    let p1 = 0.10;
+    let p2 = 0.05;
 
     if (!state.is_grounded) {
-      p0 = 0.95;
+      action = 'RUN';
+      reason = 'Airborne in jump arc';
+      p0 = 0.94;
       p1 = 0.04;
-      p2 = 0.01;
-    } else if (state.obstacle_dist <= 85 && state.obstacle_dist >= 35) {
-      // Prime jump timing: jump to clear the pipe cleanly or stomp the Goomba!
-      p2 = 0.94;
-      p1 = 0.05;
-      p0 = 0.01;
-    } else if (state.obstacle_dist <= 180 && state.obstacle_dist > 85) {
-      p1 = 0.76;
-      p2 = 0.18;
-      p0 = 0.06;
-    } else {
-      p0 = 0.88;
-      p1 = 0.09;
+      p2 = 0.02;
+    } else if (state.item_box !== 'none' && state.item_box_dist <= 85 && state.item_box_dist >= 40) {
+      action = 'JUMP';
+      reason = `Hit ${state.item_box === 'question_block' ? '? Block' : state.item_box} for coins!`;
+      p1 = 0.92;
+      p0 = 0.05;
       p2 = 0.03;
+    } else if (state.hazard_dist <= 85 && state.hazard_dist >= 35) {
+      action = 'JUMP';
+      reason = `Leap over ${state.ground_hazard}`;
+      p1 = 0.95;
+      p0 = 0.03;
+      p2 = 0.02;
+    } else if ((state.ground_hazard === 'goomba' || state.ground_hazard === 'koopa') && state.hazard_dist <= 220 && state.hazard_dist > 85) {
+      action = 'SHOOT';
+      reason = `Fire fireball at ${state.ground_hazard}`;
+      p2 = 0.91;
+      p1 = 0.06;
+      p0 = 0.03;
+    } else {
+      action = 'RUN';
+      reason = 'Safe cruise along the ground';
+      p0 = 0.88;
+      p1 = 0.08;
+      p2 = 0.04;
     }
 
-    const noise = (Math.random() - 0.5) * 0.03;
+    const noise = (Math.random() - 0.5) * 0.02;
     p0 = Math.max(0.01, Math.min(0.98, p0 + noise));
-    p1 = Math.max(0.01, Math.min(0.98, p1 - noise * 0.6));
+    p1 = Math.max(0.01, Math.min(0.98, p1 - noise * 0.5));
     p2 = Math.max(0.01, Math.min(0.98, 1 - p0 - p1));
 
     const sum = p0 + p1 + p2;
@@ -447,9 +509,8 @@ Respond strictly in valid JSON:
     p1 = +(p1 / sum).toFixed(2);
     p2 = +(1 - p0 - p1).toFixed(2);
 
-    const score = +(p1 * 1.0 + p2 * 2.0).toFixed(2);
+    const score = action === 'SHOOT' ? 1.9 : action === 'JUMP' ? 1.15 : 0.15;
     const confidence = +(Math.max(p0, p1, p2) * 0.85 + 0.15).toFixed(2);
-    const shouldJump = score >= 1.0;
 
     const fakeResponse: JevDecisionResponse = {
       model: `${this.model}@groq`,
@@ -457,10 +518,11 @@ Respond strictly in valid JSON:
         urgency: {
           type: 'score',
           score,
+          action,
           legend: {
-            '0': 'Not at all: Mario is running safely, obstacle is far ahead...',
-            '1': 'Soon: Obstacle is within 85-180px, prepare jump...',
-            '2': 'Right now: Obstacle is directly ahead (35-85px), jump immediately!'
+            '0': 'Run: Path clear or airborne, running safely...',
+            '1': 'Jump: Jump to hit overhead ? box or clear pipe/enemy!',
+            '2': 'Shoot: Shoot fireball to eliminate oncoming enemy!'
           },
           probabilities: {
             '0': p0,
@@ -471,8 +533,8 @@ Respond strictly in valid JSON:
         }
       },
       usage: {
-        prompt_tokens: 92,
-        completion_tokens: 30
+        prompt_tokens: 95,
+        completion_tokens: 32
       }
     };
 
@@ -484,16 +546,17 @@ Respond strictly in valid JSON:
       estimatedCost: this.totalCost,
       lastScore: score,
       lastConfidence: confidence,
-      lastDecision: shouldJump ? 'JUMP' : 'WAIT',
+      lastDecision: action,
+      lastDecisionReason: reason,
       lastRequest: payload,
       lastResponse: fakeResponse,
       apiKeySet: !!this.apiKey,
-      isSimulated: !this.apiKey,
+      isSimulated: true,
       provider: this.provider
     };
 
     if (this.onTelemetryUpdate) this.onTelemetryUpdate(this.telemetry);
-    return { shouldJump, score };
+    return { action, shouldJump: action === 'JUMP', shouldShoot: action === 'SHOOT', score, reason };
   }
 }
 
