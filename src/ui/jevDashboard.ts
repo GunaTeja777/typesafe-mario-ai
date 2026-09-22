@@ -196,14 +196,14 @@ export class JevDashboard {
       confEl.textContent = t.lastConfidence.toFixed(2);
 
       if (t.lastDecision === 'SHOOT') {
-        actionEl.innerHTML = `<span style="color:#ff6600;font-weight:700;">action SHOOT 🔥 (${t.lastDecisionReason || 'Fireball at enemy'})</span>`;
-        banner.style.borderColor = '#ff6600';
+        actionEl.innerHTML = `<span style="color:#fb923c;font-weight:600;">SHOOT 🔥 (${t.lastDecisionReason || 'Fireball at enemy'})</span>`;
+        banner.style.borderLeftColor = '#f97316';
       } else if (t.lastDecision === 'JUMP') {
-        actionEl.innerHTML = `<span style="color:#4ade80;font-weight:700;">action JUMP 🦘 (${t.lastDecisionReason || 'Hit ? Box / Leap'})</span>`;
-        banner.style.borderColor = '#4ade80';
+        actionEl.innerHTML = `<span style="color:#34d399;font-weight:600;">JUMP 🦘 (${t.lastDecisionReason || 'Hit ? Box / Leap'})</span>`;
+        banner.style.borderLeftColor = '#10b981';
       } else {
-        actionEl.innerHTML = `<span style="color:#94a3b8;">action RUN 🏃 (${t.lastDecisionReason || 'Cruise safe'})</span>`;
-        banner.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        actionEl.innerHTML = `<span style="color:#a1a1aa;font-weight:500;">RUN 🏃 (${t.lastDecisionReason || 'Cruise safe'})</span>`;
+        banner.style.borderLeftColor = '#71717a';
       }
     }
 
@@ -216,7 +216,7 @@ export class JevDashboard {
     if (fill0 && val0 && row0) {
       fill0.style.width = `${Math.round(probs['0'] * 100)}%`;
       val0.textContent = probs['0'].toFixed(2);
-      row0.style.backgroundColor = probs['0'] >= Math.max(probs['1'], probs['2']) ? '#273259' : '#18203f';
+      row0.classList.toggle('active', probs['0'] >= Math.max(probs['1'], probs['2']));
     }
 
     const fill1 = $('barFill1');
@@ -225,7 +225,7 @@ export class JevDashboard {
     if (fill1 && val1 && row1) {
       fill1.style.width = `${Math.round(probs['1'] * 100)}%`;
       val1.textContent = probs['1'].toFixed(2);
-      row1.style.backgroundColor = probs['1'] >= Math.max(probs['0'], probs['2']) ? '#1b4332' : '#18203f';
+      row1.classList.toggle('active', probs['1'] >= Math.max(probs['0'], probs['2']));
     }
 
     const fill2 = $('barFill2');
@@ -234,7 +234,7 @@ export class JevDashboard {
     if (fill2 && val2 && row2) {
       fill2.style.width = `${Math.round(probs['2'] * 100)}%`;
       val2.textContent = probs['2'].toFixed(2);
-      row2.style.backgroundColor = probs['2'] >= Math.max(probs['0'], probs['1']) ? '#4a1e1b' : '#18203f';
+      row2.classList.toggle('active', probs['2'] >= Math.max(probs['0'], probs['1']));
     }
 
     // JSON Request

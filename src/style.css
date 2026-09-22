@@ -1,15 +1,17 @@
 :root {
-  --bg: #0e1122;
-  --panel-bg: #14182e;
-  --panel-border: rgba(255, 255, 255, 0.12);
-  --code-bg: #0a0d1d;
-  --text-main: #e2e8f0;
-  --text-muted: #8392a7;
-  --accent-green: #4ade80;
-  --accent-blue: #3b82f6;
-  --accent-purple: #c084fc;
-  --accent-yellow: #facc15;
-  --accent-red: #ef4444;
+  /* High-end Minimalist Developer Dark Palette (Linear / Vercel style) */
+  --bg: #09090b;
+  --panel-bg: #121215;
+  --panel-border: #27272a;
+  --panel-border-subtle: #1f1f23;
+  --code-bg: #070709;
+  --text-main: #f4f4f5;
+  --text-muted: #71717a;
+  --text-secondary: #a1a1aa;
+  --accent-cyan: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-orange: #f97316;
 }
 
 *, *::before, *::after {
@@ -21,9 +23,10 @@ body {
   padding: 0;
   background-color: var(--bg);
   color: var(--text-main);
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Fullscreen Split Layout */
@@ -42,7 +45,7 @@ body {
   }
 }
 
-/* Left Game Area */
+/* Left Game Viewport */
 .game-viewport {
   flex: 0 0 46vw;
   min-width: 580px;
@@ -52,7 +55,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 2px solid var(--panel-border);
+  border-right: 1px solid var(--panel-border);
   user-select: none;
 }
 
@@ -79,60 +82,52 @@ body {
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
-  background: rgba(14, 17, 34, 0.88);
-  backdrop-filter: blur(8px);
+  background: rgba(18, 18, 21, 0.92);
+  backdrop-filter: blur(10px);
   padding: 6px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   z-index: 10;
 }
 
 .f-btn {
-  background: #1e2548;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 5px 11px;
+  background: #18181b;
+  color: #e4e4e7;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  padding: 6px 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: all 0.15s ease;
 }
 
 .f-btn:hover {
-  background: #2a3466;
-  border-color: #60a5fa;
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #ffffff;
 }
 
 .f-btn.active {
-  background: #16a34a;
-  border-color: #4ade80;
+  background: #064e3b;
+  border-color: #059669;
+  color: #a7f3d0;
 }
 
 #shootBtn.has-ammo {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  border-color: #fb923c;
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+  background: #ea580c;
+  border-color: #f97316;
   color: #ffffff;
-  font-weight: 700;
-  animation: pulse-fire 1.8s infinite;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(234, 88, 12, 0.4);
 }
 
 #shootBtn.no-ammo {
-  background: #181c30;
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #94a3b8;
-  opacity: 0.7;
-}
-
-@keyframes pulse-fire {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 16px rgba(249, 115, 22, 0.85);
-  }
+  background: #18181b;
+  border-color: #27272a;
+  color: #71717a;
+  opacity: 0.6;
 }
 
 /* Right Jev Telemetry Area */
@@ -151,9 +146,9 @@ body {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   padding: 12px 20px;
-  background: #11152a;
+  background: #0e0e11;
   border-bottom: 1px solid var(--panel-border);
   font-size: 13px;
   flex-shrink: 0;
@@ -162,29 +157,31 @@ body {
 .jev-title-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-weight: 500;
   flex-wrap: wrap;
 }
 
 .jev-brand {
   font-weight: 700;
-  color: #ffffff;
+  color: #fafafa;
   font-size: 14px;
+  letter-spacing: -0.3px;
 }
 
 .jev-model-tag {
-  color: #93c5fd;
+  color: #e4e4e7;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  background: rgba(59, 130, 246, 0.15);
-  padding: 2px 6px;
+  font-size: 11.5px;
+  background: #18181b;
+  padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid #27272a;
 }
 
 .jev-pipe-info {
   color: var(--text-muted);
+  font-size: 12.5px;
 }
 
 .jev-stats-bar {
@@ -192,31 +189,33 @@ body {
   align-items: center;
   gap: 10px;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 12.5px;
-  color: var(--text-muted);
+  font-size: 12px;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .jev-status-dot {
-  color: var(--accent-green);
-  font-size: 11px;
+  color: var(--accent-emerald);
+  font-size: 10px;
 }
 
 .jev-config-btn {
-  background: #242c54;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #18181b;
+  color: #e4e4e7;
+  border: 1px solid #3f3f46;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 500;
   cursor: pointer;
   margin-left: 6px;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .jev-config-btn:hover {
-  background: #333d73;
+  background: #27272a;
+  border-color: #52525b;
+  color: #ffffff;
 }
 
 /* Jev Two-Panels Grid */
@@ -240,27 +239,29 @@ body {
   flex-direction: column;
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 16px 18px;
+  border-radius: 10px;
+  padding: 16px;
   overflow: hidden;
   min-width: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .panel-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fafafa;
+  letter-spacing: -0.2px;
 }
 
 .shorten-toggle {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -269,42 +270,46 @@ body {
 }
 
 .shorten-toggle input {
-  accent-color: var(--accent-blue);
+  accent-color: var(--accent-cyan);
   cursor: pointer;
 }
 
 .panel-meta-http {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11.5px;
+  font-size: 11px;
   margin-bottom: 10px;
   line-height: 1.5;
+  background: #08080a;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border-subtle);
 }
 
 .http-verb {
-  color: #c084fc;
-  font-weight: 700;
+  color: var(--accent-cyan);
+  font-weight: 600;
 }
 
 .http-url {
-  color: #60a5fa;
+  color: #a1a1aa;
 }
 
 .http-header {
-  color: var(--text-muted);
+  color: #71717a;
 }
 
 /* Code Boxes */
 .code-box {
   flex: 1;
   background: var(--code-bg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border: 1px solid var(--panel-border-subtle);
+  border-radius: 6px;
   padding: 10px 12px;
   overflow-y: auto;
   max-height: 380px;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11.5px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .code-box pre {
@@ -313,22 +318,24 @@ body {
   word-break: break-word;
 }
 
-/* Syntax Highlighting */
-.json-key { color: #a78bfa; }
-.json-str { color: #4ade80; }
-.json-num { color: #f59e0b; }
-.json-bool { color: #38bdf8; }
-.json-null { color: #94a3b8; }
+/* Refined Minimalist Syntax Highlighting */
+.json-key { color: #94a3b8; }
+.json-str { color: #86efac; }
+.json-num { color: #fde047; }
+.json-bool { color: #f472b6; }
+.json-null { color: #71717a; }
 
 /* Decision Banner */
 .decision-banner {
-  padding: 9px 12px;
-  background: #0d1124;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 10px 12px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-left: 3px solid #10b981;
+  border-radius: 6px;
+  font-size: 12.5px;
   margin-bottom: 12px;
-  color: #cbd5e1;
+  color: #d4d4d8;
+  line-height: 1.4;
 }
 
 .decision-banner b {
@@ -340,68 +347,79 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .prob-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #18203f;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #18181b;
+  border: 1px solid #27272a;
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 7px 10px;
   font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.prob-row.active {
+  background: #202024;
+  border-color: #3f3f46;
 }
 
 .prob-label {
-  width: 90px;
-  color: #cbd5e1;
+  width: 95px;
+  color: #d4d4d8;
   font-weight: 500;
   flex-shrink: 0;
+  font-size: 11.5px;
 }
 
 .prob-bar-track {
   flex: 1;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
+  height: 6px;
+  background: #27272a;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .prob-bar-fill {
   height: 100%;
-  background: #3b82f6;
-  border-radius: 4px;
+  border-radius: 3px;
   transition: width 0.15s ease-out;
 }
 
+#barFill0 { background: #38bdf8; } /* Run: Cyan */
+#barFill1 { background: #10b981; } /* Jump: Emerald */
+#barFill2 { background: #f97316; } /* Shoot: Amber-Orange */
+
 .prob-val {
-  width: 36px;
+  width: 34px;
   text-align: right;
   font-family: 'IBM Plex Mono', monospace;
   font-weight: 600;
-  color: #ffffff;
+  color: #fafafa;
+  font-size: 11.5px;
 }
 
 .panel-footer-note {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.45;
-  color: var(--text-muted);
+  color: #71717a;
   margin-top: 10px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--panel-border-subtle);
   padding-top: 8px;
 }
 
 .panel-footer-note b {
-  color: #cbd5e1;
+  color: #a1a1aa;
 }
 
 /* API Key Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 15, 0.75);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -410,14 +428,14 @@ body {
 }
 
 .modal-card {
-  background: #151933;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 16px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  background: #121215;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
   max-width: 480px;
   width: 92%;
   overflow: hidden;
-  color: #ffffff;
+  color: #fafafa;
 }
 
 .modal-head {
@@ -425,21 +443,26 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  background: #1d2347;
-  border-bottom: 1px solid var(--panel-border);
+  background: #18181b;
+  border-bottom: 1px solid #27272a;
 }
 
 .modal-head h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .btn-close {
   background: none;
   border: none;
-  color: #ffffff;
-  font-size: 22px;
+  color: #a1a1aa;
+  font-size: 20px;
   cursor: pointer;
+}
+
+.btn-close:hover {
+  color: #ffffff;
 }
 
 .modal-body {
@@ -447,9 +470,9 @@ body {
 }
 
 .modal-desc {
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: #a1a1aa;
   margin-top: 0;
 }
 
@@ -459,33 +482,35 @@ body {
 
 .field-row label {
   display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 500;
+  color: #d4d4d8;
   margin-bottom: 6px;
 }
 
 .api-key-text-input {
   width: 100%;
-  background: #090c1c;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
+  background: #08080a;
+  border: 1px solid #27272a;
+  border-radius: 6px;
   padding: 8px 12px;
-  color: #ffffff;
+  color: #fafafa;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
 }
 
 .api-key-text-input:focus {
-  border-color: #60a5fa;
+  border-color: #52525b;
 }
 
 .api-status-tag {
   font-size: 12px;
   padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  color: #a1a1aa;
   margin-top: 8px;
 }
 
@@ -494,23 +519,31 @@ body {
   justify-content: flex-end;
   gap: 10px;
   padding: 12px 18px;
-  background: #111429;
-  border-top: 1px solid var(--panel-border);
+  background: #18181b;
+  border-top: 1px solid #27272a;
 }
 
 .btn {
-  background: #3b82f6;
-  color: #ffffff;
+  background: #fafafa;
+  color: #09090b;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  background: #e4e4e7;
 }
 
 .btn-secondary {
-  background: #273059;
+  background: #27272a;
+  color: #fafafa;
 }
 
-
+.btn-secondary:hover {
+  background: #3f3f46;
+}
