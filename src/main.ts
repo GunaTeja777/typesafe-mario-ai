@@ -16,7 +16,21 @@ function initApp() {
   const humanBtn = document.getElementById('humanBtn') as HTMLButtonElement;
   const shootBtn = document.getElementById('shootBtn') as HTMLButtonElement;
   const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement;
+  const musicBtn = document.getElementById('musicBtn') as HTMLButtonElement;
   const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement;
+
+  const updateAudioButtons = () => {
+    soundBtn.textContent = sounds.isSfxEnabled() ? '🔊 SFX' : '🔇 SFX Off';
+    soundBtn.classList.toggle('active', sounds.isSfxEnabled());
+    musicBtn.textContent = sounds.isMusicEnabled() ? '🎵 Music' : '🔇 Music Off';
+    musicBtn.classList.toggle('active', sounds.isMusicEnabled());
+  };
+  updateAudioButtons();
+
+  const restartGame = () => {
+    sim.restart();
+    sounds.playClick();
+  };
 
   pauseBtn.onclick = () => {
     sim.paused = !sim.paused;
@@ -36,19 +50,26 @@ function initApp() {
   };
 
   soundBtn.onclick = () => {
-    const enabled = !sounds.isEnabled();
-    sounds.setEnabled(enabled);
-    soundBtn.textContent = enabled ? '🔊 Sound' : '🔇 Muted';
+    sounds.init();
+    const enabled = !sounds.isSfxEnabled();
+    sounds.setSfxEnabled(enabled);
+    updateAudioButtons();
     if (enabled) sounds.playClick();
   };
 
-  resetBtn.onclick = () => {
-    sim.restart();
-    sounds.playClick();
+  musicBtn.onclick = () => {
+    sounds.init();
+    const enabled = !sounds.isMusicEnabled();
+    sounds.setMusicEnabled(enabled);
+    updateAudioButtons();
+    if (enabled) sounds.playClick();
   };
 
-  // Canvas click & Space key triggers jump in manual mode or testing
+  resetBtn.onclick = restartGame;
+
+  // Pointer down & up for variable jump
   gameCanvas.addEventListener('pointerdown', (e: MouseEvent) => {
+    sounds.init();
     if (e.button === 2) {
       sim.shoot();
     } else {
@@ -56,7 +77,12 @@ function initApp() {
     }
   });
 
+  window.addEventListener('pointerup', () => {
+    sim.releaseJump();
+  });
+
   window.addEventListener('keydown', (e: KeyboardEvent) => {
+    sounds.init();
     if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
 
     if (e.code === 'Space' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
@@ -69,11 +95,21 @@ function initApp() {
       sim.paused = !sim.paused;
       pauseBtn.textContent = sim.paused ? '▶ Resume' : '⏸ Pause';
     } else if (e.key === 'r' || e.key === 'R') {
-      sim.restart();
+      restartGame();
     } else if (e.key === 'm' || e.key === 'M') {
-      const enabled = !sounds.isEnabled();
-      sounds.setEnabled(enabled);
-      soundBtn.textContent = enabled ? '🔊 Sound' : '🔇 Muted';
+      const enabled = !sounds.isMusicEnabled();
+      sounds.setMusicEnabled(enabled);
+      updateAudioButtons();
+    } else if (e.key === 's' || e.key === 'S') {
+      const enabled = !sounds.isSfxEnabled();
+      sounds.setSfxEnabled(enabled);
+      updateAudioButtons();
+    }
+  });
+
+  window.addEventListener('keyup', (e: KeyboardEvent) => {
+    if (e.code === 'Space' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+      sim.releaseJump();
     }
   });
 

@@ -747,6 +747,149 @@ export function makeEmptyBlock(): HTMLCanvasElement {
   return c;
 }
 
+export function makePiranhaPlant(frame: number): HTMLCanvasElement {
+  const [c, x] = mk(36, 46);
+  x.translate(18, 24);
+
+  // Stem (Green)
+  x.fillStyle = '#00a800';
+  x.strokeStyle = INK;
+  x.lineWidth = 2;
+  x.fillRect(-4, 0, 8, 20);
+  x.strokeRect(-4, 0, 8, 20);
+
+  // Leaves
+  x.beginPath();
+  x.ellipse(-10, 12, 7, 3.5, -0.4, 0, Math.PI * 2);
+  x.ellipse(10, 12, 7, 3.5, 0.4, 0, Math.PI * 2);
+  x.fill();
+  x.stroke();
+
+  // Head (Red bulbous jaws with white polka dots)
+  x.fillStyle = '#e52521';
+  x.lineWidth = 2;
+
+  if (frame === 0) {
+    // Open Mouth
+    // Top jaw
+    x.beginPath();
+    x.ellipse(0, -10, 13, 10, -0.2, Math.PI * 0.9, Math.PI * 2.1);
+    x.fill();
+    x.stroke();
+
+    // Bottom jaw
+    x.beginPath();
+    x.ellipse(0, 0, 12, 8, 0.2, 0, Math.PI * 1.1);
+    x.fill();
+    x.stroke();
+
+    // Black Mouth Interior
+    x.fillStyle = '#111111';
+    x.beginPath();
+    x.ellipse(2, -4, 9, 6, 0, 0, Math.PI * 2);
+    x.fill();
+
+    // White Sharp Teeth
+    x.fillStyle = '#ffffff';
+    // Upper teeth
+    for (let i = -6; i <= 6; i += 4) {
+      x.beginPath();
+      x.moveTo(i - 2, -9);
+      x.lineTo(i + 2, -9);
+      x.lineTo(i, -5);
+      x.closePath();
+      x.fill();
+    }
+    // Lower teeth
+    for (let i = -4; i <= 4; i += 4) {
+      x.beginPath();
+      x.moveTo(i - 2, 1);
+      x.lineTo(i + 2, 1);
+      x.lineTo(i, -3);
+      x.closePath();
+      x.fill();
+    }
+  } else {
+    // Closed / Champing Mouth
+    x.beginPath();
+    x.ellipse(0, -6, 13, 13, 0, 0, Math.PI * 2);
+    x.fill();
+    x.stroke();
+
+    // White Lips Rim
+    x.strokeStyle = '#ffffff';
+    x.lineWidth = 3;
+    x.beginPath();
+    x.ellipse(0, -5, 11, 4, 0, 0, Math.PI * 2);
+    x.stroke();
+  }
+
+  // White Polka Dots on Head
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.arc(-6, -12, 2.5, 0, Math.PI * 2);
+  x.arc(6, -14, 2, 0, Math.PI * 2);
+  x.arc(-7, -4, 2, 0, Math.PI * 2);
+  x.arc(7, -2, 2.5, 0, Math.PI * 2);
+  x.fill();
+
+  return c;
+}
+
+export function makeSuperStar(frame: number): HTMLCanvasElement {
+  const [c, x] = mk(36, 36);
+  x.translate(18, 18);
+
+  const colors = ['#ffd700', '#ffe600', '#fff066', '#ffc400'];
+  const color = colors[frame % colors.length];
+
+  // Draw 5-pointed star
+  x.fillStyle = color;
+  x.strokeStyle = INK;
+  x.lineWidth = 2.2;
+  x.lineJoin = 'round';
+
+  x.beginPath();
+  const spikes = 5;
+  const outerRadius = 14;
+  const innerRadius = 6.5;
+  let rot = (Math.PI / 2) * 3;
+  let step = Math.PI / spikes;
+
+  x.moveTo(0, -outerRadius);
+  for (let i = 0; i < spikes; i++) {
+    let px = Math.cos(rot) * outerRadius;
+    let py = Math.sin(rot) * outerRadius;
+    x.lineTo(px, py);
+    rot += step;
+
+    px = Math.cos(rot) * innerRadius;
+    py = Math.sin(rot) * innerRadius;
+    x.lineTo(px, py);
+    rot += step;
+  }
+  x.lineTo(0, -outerRadius);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Star Eyes (Two classic vertical ovals)
+  x.fillStyle = INK;
+  x.beginPath();
+  x.ellipse(-3.5, -1, 1.6, 4, 0, 0, Math.PI * 2);
+  x.ellipse(3.5, -1, 1.6, 4, 0, 0, Math.PI * 2);
+  x.fill();
+
+  // Eye White Highlights
+  x.fillStyle = '#ffffff';
+  x.beginPath();
+  x.arc(-3.5, -3, 0.9, 0, Math.PI * 2);
+  x.arc(3.5, -3, 0.9, 0, Math.PI * 2);
+  x.fill();
+
+  return c;
+}
+
 export const marioRunSprites = [
   makeMarioRunFrame(0),
   makeMarioRunFrame(1),
@@ -758,6 +901,13 @@ export const marioDeadSprite = makeMarioDead();
 export const goombaSprites = [makeGoomba(0), makeGoomba(1)];
 export const koopaSprites = [makeKoopa(0), makeKoopa(1)];
 export const koopaShellSprite = makeKoopaShell();
+export const piranhaSprites = [makePiranhaPlant(0), makePiranhaPlant(1)];
+export const starSprites = [
+  makeSuperStar(0),
+  makeSuperStar(1),
+  makeSuperStar(2),
+  makeSuperStar(3)
+];
 export const questionBlockSprite = makeQuestionBlock();
 export const emptyBlockSprite = makeEmptyBlock();
 export const brickBlockSprite = makeBrickBlock();

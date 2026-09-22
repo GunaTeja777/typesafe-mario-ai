@@ -7,6 +7,8 @@ import {
   goombaSprites,
   koopaSprites,
   koopaShellSprite,
+  piranhaSprites,
+  starSprites,
   questionBlockSprite,
   emptyBlockSprite,
   brickBlockSprite,
@@ -30,10 +32,12 @@ function mulberry(a: number) {
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private coinTick: number = 0;
+
+  // Classic Vibrant Super Mario Parallax Layers
   private skyCache!: HTMLCanvasElement;
   private cloudLayerCache!: HTMLCanvasElement;
   private hillLayerCache!: HTMLCanvasElement;
-  private coinTick: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -48,25 +52,28 @@ export class CanvasRenderer {
   }
 
   public buildStaticLayers() {
+    // Classic Bright Super Mario Sky Blue Gradient
     const sky = document.createElement('canvas');
     sky.width = CONSTS.W * 2;
     sky.height = CONSTS.H * 2;
     const sx = sky.getContext('2d')!;
     sx.scale(2, 2);
-
     const g = sx.createLinearGradient(0, 0, 0, CONSTS.H);
-    g.addColorStop(0, '#5c94fc');   // Super Mario Sky Blue
+    g.addColorStop(0, '#5c94fc');   // Iconic Nintendo Sky Blue
     g.addColorStop(0.75, '#88b5fc');
     g.addColorStop(1, '#c4dcfe');
     sx.fillStyle = g;
     sx.fillRect(0, 0, CONSTS.W, CONSTS.H);
     this.skyCache = sky;
 
-    this.cloudLayerCache = this.renderMarioClouds();
-    this.hillLayerCache = this.renderMarioHills();
+    // Fluffy White Clouds
+    this.cloudLayerCache = this.renderClouds();
+
+    // Rolling Green Hills
+    this.hillLayerCache = this.renderHills();
   }
 
-  private renderMarioClouds(): HTMLCanvasElement {
+  private renderClouds(): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = CONSTS.W * 2;
     c.height = CONSTS.H * 2;
@@ -74,7 +81,7 @@ export class CanvasRenderer {
     x.scale(2, 2);
     const rand = mulberry(42);
 
-    const drawMarioCloud = (cx: number, cy: number, scale: number) => {
+    const drawCloud = (cx: number, cy: number, scale: number) => {
       x.save();
       x.translate(cx, cy);
       x.scale(scale, scale);
@@ -98,7 +105,7 @@ export class CanvasRenderer {
       x.closePath();
       x.stroke();
 
-      x.fillStyle = INK;
+      x.fillStyle = 'rgba(255, 255, 255, 0.7)';
       x.beginPath();
       x.ellipse(-7, 2, 2, 4.5, 0, 0, Math.PI * 2);
       x.ellipse(7, 2, 2, 4.5, 0, 0, Math.PI * 2);
@@ -109,16 +116,16 @@ export class CanvasRenderer {
 
     for (let i = 0; i < 5; i++) {
       const cx = 70 + i * 160 + rand() * 50;
-      const cy = 50 + rand() * 180;
+      const cy = 50 + rand() * 170;
       const scale = 0.85 + rand() * 0.3;
       for (const offset of [-CONSTS.W, 0, CONSTS.W]) {
-        drawMarioCloud(cx + offset, cy, scale);
+        drawCloud(cx + offset, cy, scale);
       }
     }
     return c;
   }
 
-  private renderMarioHills(): HTMLCanvasElement {
+  private renderHills(): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = CONSTS.W * 2;
     c.height = CONSTS.H * 2;
@@ -156,7 +163,7 @@ export class CanvasRenderer {
     const capX = x - overhang;
     const capW = w + overhang * 2;
 
-    // Classic NES/SNES Super Mario Pipe Color Palette
+    // Classic Vibrant NES/SNES Super Mario Green Pipe Palette
     const C_BASE = '#00a800';      // Vibrant classic Nintendo green
     const C_LIME = '#84e400';      // Smooth lime highlight
     const C_GLINT = '#e2fa60';     // Specular glint stripe
@@ -167,23 +174,23 @@ export class CanvasRenderer {
     c.fillStyle = C_BASE;
     c.fillRect(x, y + capH, w, h - capH);
 
-    // Body Highlight Vertical Bands (Aligned with Cap)
+    // Body Highlight Vertical Bands
     c.fillStyle = C_LIME;
     c.fillRect(x + 3, y + capH, 9, h - capH);
     c.fillStyle = C_GLINT;
     c.fillRect(x + 6, y + capH, 4, h - capH);
 
-    // Body Shadow Vertical Bands (Aligned with Cap)
+    // Body Shadow Vertical Bands
     c.fillStyle = C_SHADOW;
     c.fillRect(x + w - 15, y + capH, 9, h - capH);
     c.fillStyle = C_DARK;
     c.fillRect(x + w - 6, y + capH, 6, h - capH);
 
-    // Under-cap Drop Shadow cast onto pipe body
+    // Under-cap Drop Shadow
     c.fillStyle = 'rgba(0, 30, 0, 0.45)';
     c.fillRect(x, y + capH, w, 5);
 
-    // Body Left and Right Outlines
+    // Body Outlines
     c.strokeStyle = '#000000';
     c.lineWidth = 2.5;
     c.beginPath();
@@ -193,35 +200,26 @@ export class CanvasRenderer {
     c.lineTo(x + w, y + h);
     c.stroke();
 
-    // 2. Pipe Cap (Rim)
+    // 2. Pipe Cap
     c.fillStyle = C_BASE;
     c.fillRect(capX, y, capW, capH);
 
-    // Left Overhang Highlight Wing
     c.fillStyle = C_LIME;
     c.fillRect(capX, y, overhang + 3, capH);
-
-    // Cap Highlights (Exact same X positions as body for seamless vertical continuity!)
-    c.fillStyle = C_LIME;
     c.fillRect(x + 3, y, 9, capH);
     c.fillStyle = C_GLINT;
     c.fillRect(x + 6, y, 4, capH);
 
-    // Cap Shadows (Exact same X positions as body!)
     c.fillStyle = C_SHADOW;
     c.fillRect(x + w - 15, y, 9, capH);
     c.fillStyle = C_DARK;
     c.fillRect(x + w - 6, y, 6 + overhang, capH);
 
-    // Flat Top Bevel Highlight (horizontal stripe along top edge - no hollow hole!)
     c.fillStyle = C_GLINT;
     c.fillRect(capX + 2, y + 1.5, capW - 4, 2);
-
-    // Bottom Lip Bevel Shadow
     c.fillStyle = C_DARK;
     c.fillRect(capX + 1, y + capH - 2, capW - 2, 2);
 
-    // Clean Outer Cap Outline
     c.strokeStyle = '#000000';
     c.lineWidth = 2.5;
     c.strokeRect(capX, y, capW, capH);
@@ -232,6 +230,7 @@ export class CanvasRenderer {
     const gy = CONSTS.GROUND_Y;
     const gh = CONSTS.H - gy;
 
+    // Classic Warm Earthen Mario Soil with Lush Green Grass Cap
     c.fillStyle = '#d88b28';
     c.fillRect(0, gy, CONSTS.W, gh);
 
@@ -247,6 +246,7 @@ export class CanvasRenderer {
     c.lineTo(CONSTS.W, gy);
     c.stroke();
 
+    // Brick ground mortar lines
     const off = dist % 28;
     for (let x = -off; x < CONSTS.W; x += 28) {
       c.beginPath();
@@ -266,21 +266,19 @@ export class CanvasRenderer {
     const c = this.ctx;
     c.save();
 
-    c.font = '700 18px "IBM Plex Mono", monospace';
+    c.font = '700 16px "IBM Plex Mono", monospace';
     c.textAlign = 'left';
     c.textBaseline = 'top';
 
     const pad = (num: number, size: number) => num.toString().padStart(size, '0');
 
     const scoreStr = `MARIO\n${pad(sim.score, 6)}`;
-    const coinStr = `COINS\n🪙x${pad(sim.coins, 2)}`;
-    const fireStr = `AMMO 🔥\n${pad(sim.fireAmmo, 2)} BULLETS`;
-    const stage = sim.getFlowStage();
-    const stageEmoji = stage.stage === 1 ? '🟢' : stage.stage === 2 ? '🟡' : '🔴';
-    const worldStr = `WORLD ${stageEmoji}\n ${stage.tag} ${stage.name}`;
-    const genStr = `GEN\n ${sim.gen}`;
+    const coinStr = `COINS\n🪙 x${pad(sim.coins, 2)}`;
+    const fireStr = `AMMO\n🔥 ${pad(sim.fireAmmo, 2)}`;
+    const worldStr = `WORLD\n 1-1`;
+    const bestStr = `TOP RECORD\n🏆 ${pad(sim.bestScore, 6)}`;
 
-    const drawPill = (txt: string, x: number, y: number, highlight: boolean = false, width: number = 135) => {
+    const drawPill = (txt: string, x: number, y: number, highlight: boolean = false, width: number = 120) => {
       if (highlight) {
         c.save();
         c.fillStyle = 'rgba(234, 88, 12, 0.45)';
@@ -292,18 +290,38 @@ export class CanvasRenderer {
         c.stroke();
         c.restore();
       }
-      c.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      c.fillStyle = 'rgba(0, 0, 0, 0.55)';
       c.fillText(txt, x + 1, y + 1);
       c.fillStyle = highlight ? '#ffedd5' : '#ffffff';
       c.fillText(txt, x, y);
     };
 
-    // Clean, uncrowded spacing across expanded 880px widescreen
-    drawPill(scoreStr, 34, 18, false, 135);
-    drawPill(coinStr, 195, 18, false, 130);
-    drawPill(fireStr, 350, 18, sim.fireAmmo > 0, 150);
-    drawPill(worldStr, 525, 18, stage.stage === 3, 165);
-    drawPill(genStr, 715, 18, false, 115);
+    // Clean, perfectly spaced layout across 880px width — zero overlapping!
+    drawPill(scoreStr, 30, 16, false, 125);
+    drawPill(coinStr, 195, 16, false, 115);
+    drawPill(fireStr, 345, 16, sim.fireAmmo > 0, 120);
+    drawPill(worldStr, 500, 16, false, 105);
+    drawPill(bestStr, 650, 16, sim.score > sim.bestScore && sim.score > 0, 160);
+
+    // Active Starman Power Banner
+    if (sim.mario.starTicks > 0) {
+      const starTime = (sim.mario.starTicks / 60).toFixed(1);
+      c.save();
+      c.fillStyle = 'rgba(255, 215, 0, 0.88)';
+      c.strokeStyle = '#ffffff';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.roundRect(CONSTS.W / 2 - 120, 72, 240, 32, 8);
+      c.fill();
+      c.stroke();
+
+      c.fillStyle = '#000000';
+      c.font = '900 16px "Lilita One", sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(`🌟 INVINCIBLE STAR: ${starTime}s!`, CONSTS.W / 2, 88);
+      c.restore();
+    }
 
     c.restore();
   }
@@ -312,6 +330,13 @@ export class CanvasRenderer {
     const c = this.ctx;
     c.setTransform(2, 0, 0, 2, 0, 0);
 
+    // Apply Screen Shake
+    c.save();
+    if (sim.shake > 0.1) {
+      c.translate(sim.shakeX, sim.shakeY);
+    }
+
+    // 1. Classic Overworld Sky & Parallax
     c.drawImage(this.skyCache, 0, 0, CONSTS.W, CONSTS.H);
     this.drawParallax(this.cloudLayerCache, sim.dist, 0.15);
     this.drawParallax(this.hillLayerCache, sim.dist, 0.45);
@@ -320,9 +345,15 @@ export class CanvasRenderer {
     const coinFrame = Math.floor(this.coinTick / 8) % 4;
     const enemyFrame = Math.floor(sim.dist / 14) % 2;
 
-    // Render Obstacles & Entities
+    // 2. Obstacles & Entities
     for (const ob of sim.obstacles) {
       if (ob.type === 'warp_pipe') {
+        // Draw emerging Piranha Plant behind pipe cap
+        if (ob.hasPiranha && (ob.plantYOffset || 0) < 0) {
+          const plantY = ob.y + (ob.plantYOffset || 0);
+          const pFrame = ob.plantBiteFrame || 0;
+          c.drawImage(piranhaSprites[pFrame], ob.x + 10, plantY, 36, 44);
+        }
         this.drawPipe(ob.x, ob.y, ob.w, ob.h);
       } else if (ob.type === 'block') {
         const by = ob.bounceY ? ob.y + ob.bounceY : ob.y;
@@ -332,6 +363,8 @@ export class CanvasRenderer {
         c.drawImage(brickBlockSprite, ob.x, by, ob.w, ob.h);
       } else if (ob.type === 'coin' && !ob.collected) {
         c.drawImage(coinSprites[coinFrame], ob.x, ob.y, ob.w, ob.h);
+      } else if (ob.type === 'star' && !ob.collected) {
+        c.drawImage(starSprites[coinFrame % 4], ob.x, ob.y, ob.w, ob.h);
       } else if (ob.type === 'mushroom' && !ob.collected) {
         c.drawImage(mushroomSprite, ob.x, ob.y, ob.w, ob.h);
       } else if (ob.type === 'goomba') {
@@ -351,31 +384,30 @@ export class CanvasRenderer {
       }
     }
 
-    // Render Popping Coins from ? question boxes
+    // 3. Popping Coins
     for (const pc of sim.poppingCoins) {
       const f = Math.floor(pc.frame / 3) % 4;
       c.drawImage(coinSprites[f], pc.x, pc.y, 22, 22);
     }
 
+    // 4. Ground Layer
     this.drawGround(sim.dist);
 
-    // Render Fireballs
+    // 5. Fireballs
     for (const fb of sim.fireballs) {
       c.save();
       c.translate(fb.x, fb.y);
 
-      // Outer Fiery Glow
-      const grad = c.createRadialGradient(0, 0, 1, 0, 0, fb.r + 3);
+      const grad = c.createRadialGradient(0, 0, 1, 0, 0, fb.r + 4);
       grad.addColorStop(0, '#ffffff');
       grad.addColorStop(0.3, '#ffcc00');
       grad.addColorStop(0.7, '#ff4400');
       grad.addColorStop(1, 'rgba(255, 0, 0, 0)');
       c.fillStyle = grad;
       c.beginPath();
-      c.arc(0, 0, fb.r + 3, 0, Math.PI * 2);
+      c.arc(0, 0, fb.r + 4, 0, Math.PI * 2);
       c.fill();
 
-      // Inner Core
       c.fillStyle = '#ff9900';
       c.strokeStyle = '#000000';
       c.lineWidth = 1.5;
@@ -387,19 +419,31 @@ export class CanvasRenderer {
       c.restore();
     }
 
-    // Mario Character
+    // 6. Mario Character
     const m = sim.mario;
     c.save();
 
-    // Invincibility flash: crisp retro flicker without washed-out low-opacity transparency
     if (m.invincibleTicks > 0 && Math.floor(m.invincibleTicks / 3) % 2 === 0) {
-      c.globalAlpha = 0.85;
+      c.globalAlpha = 0.82;
     }
 
     c.translate(CONSTS.MARIO_X, m.y);
 
     const scale = m.isSuper ? 1.25 : 1.0;
     c.scale(scale, scale);
+
+    // Starman Rainbow Chromatic Aura
+    if (m.starTicks > 0) {
+      c.save();
+      const rainbowColors = ['#ffd700', '#ff0055', '#00e5ff', '#38ef7d', '#ff9900'];
+      const curColor = rainbowColors[Math.floor(this.coinTick / 3) % rainbowColors.length];
+      c.strokeStyle = curColor;
+      c.lineWidth = 3;
+      c.beginPath();
+      c.ellipse(18, 20, 22, 24, 0, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    }
 
     if (!m.alive) {
       c.drawImage(marioDeadSprite, -6, -4, 48, 48);
@@ -410,7 +454,21 @@ export class CanvasRenderer {
     }
     c.restore();
 
-    // Floating Score Popups
+    // Aerial Stomp Combo Badge
+    if (m.comboCount > 1 && m.alive) {
+      c.save();
+      c.fillStyle = '#facc15';
+      c.strokeStyle = '#000000';
+      c.lineWidth = 3;
+      c.font = '900 15px "Lilita One", sans-serif';
+      c.textAlign = 'center';
+      const comboTxt = `x${m.comboCount} COMBO!`;
+      c.strokeText(comboTxt, CONSTS.MARIO_X + 18, m.y - 14);
+      c.fillText(comboTxt, CONSTS.MARIO_X + 18, m.y - 14);
+      c.restore();
+    }
+
+    // 7. Floating Score Popups
     for (const fs of sim.floatingScores) {
       c.save();
       c.globalAlpha = Math.max(0, fs.l);
@@ -423,10 +481,12 @@ export class CanvasRenderer {
       c.restore();
     }
 
-    // Particles
+    // 8. Particles
     ParticleSystem.updateAndDraw(c, sim.particles);
 
-    // HUD
+    // 9. HUD
     this.drawHud(sim);
+
+    c.restore();
   }
 }

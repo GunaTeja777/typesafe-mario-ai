@@ -5,6 +5,8 @@ export interface JevMarioState {
   ground_hazard: 'warp_pipe' | 'goomba' | 'koopa' | 'none';
   hazard_dist: number;     // Horizontal distance to closest ground hazard
   hazard_height: number;   // Height of hazard in px
+  has_piranha?: boolean;   // Does approaching pipe have an active biting piranha plant
+  is_star_powered?: boolean; // Is Mario in Starman invincibility rush
   item_box: 'question_block' | 'brick' | 'coin' | 'none';
   item_box_dist: number;   // Horizontal distance to overhead item box / coin
   can_shoot: boolean;      // Can Mario shoot fireballs (fire_ammo > 0)
