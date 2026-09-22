@@ -1,4 +1,5 @@
 import { CONSTS, Simulation } from '../engine/simulation';
+import { jevClient } from '../ai/jevClient';
 import {
   marioRunSprites,
   marioJumpSprite,
@@ -320,6 +321,34 @@ export class CanvasRenderer {
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillText(`🌟 INVINCIBLE STAR: ${starTime}s!`, CONSTS.W / 2, 88);
+      c.restore();
+    }
+
+    // Live Jev AI Decision Telemetry Badge (Ideal for screen recording & LinkedIn video!)
+    if (!sim.humanControl) {
+      const dec = jevClient.telemetry.lastDecision;
+      const latency = jevClient.telemetry.lastLatencyMs;
+      const decColor = dec === 'SHOOT' ? '#ff6600' : dec === 'JUMP' ? '#22c55e' : '#38bdf8';
+      const isSim = jevClient.telemetry.isSimulated;
+
+      c.save();
+      c.fillStyle = 'rgba(10, 14, 30, 0.84)';
+      c.strokeStyle = decColor;
+      c.lineWidth = 1.6;
+      c.beginPath();
+      c.roundRect(CONSTS.W / 2 - 145, 68, 290, 26, 6);
+      c.fill();
+      c.stroke();
+
+      c.font = '700 12px "IBM Plex Mono", monospace';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = '#ffffff';
+      c.fillText(`🧠 JEV AI: `, CONSTS.W / 2 - 80, 81);
+      c.fillStyle = decColor;
+      c.fillText(`${dec}`, CONSTS.W / 2 - 25, 81);
+      c.fillStyle = '#94a3b8';
+      c.fillText(` (${latency}ms ${isSim ? 'SIM' : 'LIVE'})`, CONSTS.W / 2 + 55, 81);
       c.restore();
     }
 
