@@ -74,7 +74,7 @@ export interface JevTelemetry {
 }
 
 export class JevClient {
-  private apiKey: string = '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';
+  private apiKey: string = '';
   private provider: 'Groq' | 'OpenRouter' = 'Groq';
   private model: string = 'qwen/qwen3.8-27b';
   private endpoint: string = 'https://api.groq.com/openai/v1/chat/completions';
@@ -139,8 +139,8 @@ export class JevClient {
     this.telemetry = {
       callCount: 1,
       lastStatus: 200,
-      lastLatencyMs: 85,
-      estimatedCost: 0.000005,
+      lastLatencyMs: this.apiKey ? 85 : 0,
+      estimatedCost: 0,
       lastScore: 1.1,
       lastConfidence: 0.88,
       lastDecision: 'JUMP',
@@ -148,7 +148,7 @@ export class JevClient {
       lastRequest: initialReq,
       lastResponse: initialRes,
       apiKeySet: !!this.apiKey,
-      isSimulated: false,
+      isSimulated: !this.apiKey,
       provider: this.provider
     };
   }

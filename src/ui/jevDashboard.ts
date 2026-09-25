@@ -25,12 +25,12 @@ export class JevDashboard {
           <span class="typesafe-brand-tag">🛡️ TypeSafe AI</span>
           <span class="jev-brand">Jev Engine</span>
           <span class="jev-model-tag" id="jevModelTag">${jevClient.getModel()}</span>
-          <span class="jev-pipe-info" id="jevProviderInfo">via ${jevClient.getProvider()} LPUs</span>
+          <span class="jev-pipe-info" id="jevProviderInfo">${jevClient.getApiKey() ? `via ${jevClient.getProvider()} LPUs` : 'via Simulated Neural Engine'}</span>
         </div>
         <div class="jev-stats-bar">
           <span class="jev-status-dot" id="jevDot">●</span>
-          <span id="jevCallStats">call 1: HTTP 200 in 115 ms, $0.000005</span>
-          <button class="jev-config-btn" id="openApiSettingsBtn">⚡ Groq Key</button>
+          <span id="jevCallStats">${jevClient.getApiKey() ? 'call 1: HTTP 200 in 85 ms, $0.000005' : 'call 1: Simulated Neural Engine (0 ms, $0.00)'}</span>
+          <button class="jev-config-btn" id="openApiSettingsBtn">${this.getApiKeyButtonLabel()}</button>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ export class JevDashboard {
 
           <div class="panel-meta-http">
             <div class="http-line"><span class="http-verb">POST</span> <span class="http-url" id="jevEndpointUrl">${jevClient.getEndpoint()}</span></div>
-            <div class="http-line"><span class="http-header">Authorization:</span> Bearer <span id="jevAuthHeader">gsk_ckc9...Xc4u (Active)</span></div>
+            <div class="http-line"><span class="http-header">Authorization:</span> Bearer <span id="jevAuthHeader">${this.getMaskedAuthHeader()}</span></div>
             <div class="http-line"><span class="http-header">Content-Type:</span> application/json</div>
           </div>
 
@@ -134,20 +134,20 @@ export class JevDashboard {
       <div class="modal-backdrop" id="apiKeyModal" style="display:none;">
         <div class="modal-card">
           <div class="modal-head">
-            <h3>🔑 OpenRouter / LLM API Key</h3>
+            <h3>🔑 Connect AI API Key</h3>
             <button class="btn-close" id="closeApiKeyModal">&times;</button>
           </div>
           <div class="modal-body">
             <p class="modal-desc">
-              Enter your <b>OpenRouter API Key</b> to enable live LLM decisions through <code>https://openrouter.ai/api/alpha/decisions</code>.
+              Enter your <b>Groq API Key</b> (<code>gsk_...</code>) or <b>OpenRouter Key</b> (<code>sk-or-...</code>) to enable live cloud AI inference. Keys are stored <b>only in your local browser storage</b> (never in code or git repository).
             </p>
             <div class="field-row">
-              <label>OpenRouter API Key:</label>
-              <input type="password" id="apiKeyInput" placeholder="sk-or-v1-..." class="api-key-text-input" value="${jevClient.getApiKey()}">
+              <label>API Key:</label>
+              <input type="password" id="apiKeyInput" placeholder="Enter gsk_... or sk-or-..." class="api-key-text-input" value="${jevClient.getApiKey()}">
             </div>
             <div class="field-row">
-              <label>Model Identifier:</label>
-              <input type="text" id="modelInput" value="${jevClient.getModel()}" class="api-key-text-input">
+              <label>Model Identifier (optional):</label>
+              <input type="text" id="modelInput" value="${jevClient.getModel()}" placeholder="qwen/qwen3.8-27b or typesafe/jev-1.13" class="api-key-text-input">
             </div>
             <div class="api-status-tag" id="apiKeyStatus">
               ${jevClient.getApiKey() ? '🟢 Active Live API Key' : '🟡 Simulated Mode (Built-in Jev Neural Simulator)'}
@@ -155,11 +155,59 @@ export class JevDashboard {
           </div>
           <div class="modal-foot">
             <button class="btn" id="saveApiKeyBtn">Save & Connect</button>
-            <button class="btn btn-secondary" id="useSimulatedBtn">Use Simulator</button>
+            <button class="btn btn-secondary" id="useSimulatedBtn">Disconnect (Use Simulator)</button>
           </div>
         </div>
       </div>
     `;
+  }
+
+  private getApiKeyButtonLabel(): string {
+    const key = jevClient.getApiKey();
+    if (key) {
+      return key.startsWith('gsk_') ? '⚡ Groq Key' : '🔑 API Key';
+    }
+    return '🔑 Enter API Key';
+  }
+
+  private getMaskedAuthHeader(): string {
+    const key = jevClient.getApiKey();
+    if (!key) return '<No Key - Running Simulated Neural Mode>';
+    if (key.length > 10) {
+      return `${key.slice(0, 6)}...${key.slice(-4)} (Active)`;
+    }
+    return '•••••••• (Active)';
+  }
+
+  private updateApiDisplay() {
+    const authEl = document.getElementById('jevAuthHeader');
+    if (authEl) {
+      authEl.textContent = this.getMaskedAuthHeader();
+    }
+    const endpEl = document.getElementById('jevEndpointUrl');
+    if (endpEl) {
+      endpEl.textContent = jevClient.getEndpoint();
+    }
+    const provInfo = document.getElementById('jevProviderInfo');
+    if (provInfo) {
+      provInfo.textContent = jevClient.getApiKey()
+        ? `via ${jevClient.getProvider()} LPUs`
+        : 'via Simulated Neural Engine';
+    }
+    const btnEl = document.getElementById('openApiSettingsBtn');
+    if (btnEl) {
+      btnEl.textContent = this.getApiKeyButtonLabel();
+    }
+    const statusTag = document.getElementById('apiKeyStatus');
+    if (statusTag) {
+      statusTag.textContent = jevClient.getApiKey()
+        ? '🟢 Active Live API Key'
+        : '🟡 Simulated Mode (Built-in Jev Neural Simulator)';
+    }
+    const modelTag = document.getElementById('jevModelTag');
+    if (modelTag) {
+      modelTag.textContent = jevClient.getModel();
+    }
   }
 
   private bindEvents() {
@@ -187,12 +235,14 @@ export class JevDashboard {
       const model = ($('modelInput') as HTMLInputElement).value;
       if (model.trim()) jevClient.setModel(model.trim());
       jevClient.setApiKey(key);
+      this.updateApiDisplay();
       $('apiKeyModal').style.display = 'none';
     };
 
     $('useSimulatedBtn').onclick = () => {
       jevClient.setApiKey('');
       ($('apiKeyInput') as HTMLInputElement).value = '';
+      this.updateApiDisplay();
       $('apiKeyModal').style.display = 'none';
     };
   }
@@ -203,7 +253,11 @@ export class JevDashboard {
     // Stats
     const statsEl = $('jevCallStats');
     if (statsEl) {
-      statsEl.textContent = `call ${t.callCount}: HTTP ${t.lastStatus} in ${t.lastLatencyMs} ms, $${t.estimatedCost.toFixed(6)}`;
+      if (t.isSimulated || !jevClient.getApiKey()) {
+        statsEl.textContent = `call ${t.callCount}: Simulated Neural Mode (0 ms, $0.00)`;
+      } else {
+        statsEl.textContent = `call ${t.callCount}: HTTP ${t.lastStatus} in ${t.lastLatencyMs} ms, $${t.estimatedCost.toFixed(6)}`;
+      }
     }
 
     const latencyPill = $('liveLatencyPill');
